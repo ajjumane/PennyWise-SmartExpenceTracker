@@ -1,0 +1,11 @@
+# Artifacts & Local Context
+.gemini/
+brain/
+artifacts/
+
+# Local Environment
+.env
+*.log
+node_modules/
+.DS_Store
+Thumbs.db
