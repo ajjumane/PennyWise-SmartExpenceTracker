@@ -392,6 +392,25 @@ if (mainApp && currentUser) {
                 reader.readAsDataURL(file);
             };
 
+            const preprocessImage = (imageSrc) => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        
+                        // Apply filters to make text POP (Grayscale + High Contrast)
+                        ctx.filter = 'grayscale(100%) contrast(250%) brightness(110%)';
+                        ctx.drawImage(img, 0, 0);
+                        
+                        resolve(canvas.toDataURL('image/jpeg', 0.9));
+                    };
+                    img.src = imageSrc;
+                });
+            };
+
             dropZone.addEventListener('click', () => receiptUpload.click());
             dropZone.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -410,57 +429,67 @@ if (mainApp && currentUser) {
                 scanningViewer.classList.remove('hidden');
                 scanResultCard.classList.add('hidden');
                 scanLine.classList.remove('hidden');
-                ocrStatus.textContent = "Processing Optical Character Recognition...";
+                ocrStatus.textContent = "Enhancing Image Quality...";
 
                 try {
-                    // Initialize Tesseract Worker
+                    // Pre-process image for better contrast/clarity
+                    const processedSrc = await preprocessImage(imageSrc);
+                    // Update preview with the "enhanced" version so user sees what the AI sees
+                    scannedImagePreview.src = processedSrc;
+                    
+                    ocrStatus.textContent = "Extracting Text Data...";
+                    
                     const worker = await Tesseract.createWorker('eng');
-                    const { data: { text } } = await worker.recognize(imageSrc);
+                    const { data: { text } } = await worker.recognize(processedSrc);
                     await worker.terminate();
                     
                     processOCRResult(text);
                 } catch (err) {
                     console.error(err);
-                    ocrStatus.textContent = "Error during scan. Ensure image is clear.";
+                    ocrStatus.textContent = "Scan Failed. Ensure photo has good lighting.";
                     scanLine.classList.add('hidden');
                 }
             };
 
             const processOCRResult = (text) => {
-                ocrStatus.textContent = "Executing Advanced Analysis...";
+                ocrStatus.textContent = "Analyzing Line Items...";
                 
                 const itemsContainer = document.getElementById('scanned-items-container');
-                itemsContainer.innerHTML = ''; // Clear previous results
+                itemsContainer.innerHTML = ''; 
                 
-                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3);
+                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
                 const items = [];
                 
-                // Advanced Multiline Regex to detect [Description] ... [Amount]
-                // Supports formats like: "Hamburger .... 12.50" or "Hamburger 12.50"
-                const lineItemRegex = /^(.*?)\s+([0-9]{1,6}[.,][0-9]{2})\s*$/;
+                // More flexible Regex: Find ANY decimal amount on a line, capture text before it.
+                // This handles cases where there's trailing noise (item codes, tax symbols).
+                const lineItemRegex = /^(.*?)\s+([0-9]{1,6}[.,][0-9]{2})(\b|[^0-9])/;
 
                 lines.forEach(line => {
                     const match = line.match(lineItemRegex);
                     if (match) {
-                        let desc = match[1].replace(/[._-]/g, ' ').trim();
+                        let desc = match[1].replace(/[._*=-]/g, ' ').trim();
                         let amt = parseFloat(match[2].replace(',', '.'));
                         
-                        // Noise filter for common "Total" entries
-                        const isTotal = /total|subtotal|tax|vat|gst|balance|due|cash|change|card/i.test(desc);
+                        if (desc.length < 2) return; // Skip noise characters
+
+                        // Extended noise filter
+                        const lowerDesc = desc.toLowerCase();
+                        const isTotal = /total|subtotal|tax|vat|gst|balance|due|cash|change|card|visa|master|paid|s-total|p-total/i.test(lowerDesc);
                         
                         items.push({
                             description: desc,
                             amount: amt,
-                            ignored: isTotal // Auto-ignore if it looks like a total
+                            ignored: isTotal
                         });
                     }
                 });
 
                 if (items.length === 0) {
-                    ocrStatus.textContent = "No distinct items found. Try a clearer photo.";
+                    ocrStatus.textContent = "No items detected. Try capturing the receipt from closer up.";
                     scanLine.classList.add('hidden');
                     return;
                 }
+
 
                 // Render Items
                 items.forEach((item, index) => {
