@@ -107,8 +107,15 @@ signupForm.addEventListener("submit", async (e) => {
             body: JSON.stringify({ username, password, email })
         });
         
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Signup failed');
+        let data;
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Signup failed');
+        } else {
+            console.error("Non-JSON response received:", await response.text());
+            throw new Error(`Server Error (${response.status}): Database connection failed or server crashed.`);
+        }
 
         const userId = data.userId;
         
@@ -143,8 +150,15 @@ loginForm.addEventListener("submit", async (e) => {
             body: JSON.stringify({ username, password })
         });
         
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Login failed');
+        let data;
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Login failed');
+        } else {
+            console.error("Non-JSON response received:", await response.text());
+            throw new Error(`Server Error (${response.status}): Incorrect database configuration.`);
+        }
         
         showToast("Welcome back!", "success");
         localStorage.setItem('currentUser', JSON.stringify({ userId: data.userId, username: data.username }));

@@ -23,6 +23,10 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 # Strict check to ensure we only try Postgres if a real URL is provided
 IS_POSTGRES = bool(DATABASE_URL and DATABASE_URL.strip() and DATABASE_URL.startswith('postgres'))
 
+# Force SSL for Postgres (Required by Neon/Vercel Postgres)
+if IS_POSTGRES and 'sslmode' not in DATABASE_URL:
+    DATABASE_URL += ('&' if '?' in DATABASE_URL else '?') + 'sslmode=require'
+
 def get_db():
     if IS_POSTGRES:
         try:
@@ -306,8 +310,10 @@ def open_browser():
     time.sleep(1.5)
     webbrowser.open("http://127.0.0.1:5000")
 
+# Auto-initialize database on startup
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     if not os.environ.get("WERKZEUG_RUN_MAIN") and not os.environ.get("VERCEL"):
         threading.Thread(target=open_browser).start()
     app.run(debug=True, port=int(os.environ.get("PORT", 5000)))
