@@ -1,5 +1,6 @@
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import sqlite3
 import bcrypt
 from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_cors import CORS
@@ -15,14 +16,24 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
+IS_POSTGRES = DATABASE_URL is not None and DATABASE_URL.startswith('postgres')
 
 def get_db():
-    try:
-        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-        return conn
-    except Exception as e:
-        print(f"Database connection error: {e}")
-        return None
+    if IS_POSTGRES:
+        try:
+            conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+            return conn
+        except Exception as e:
+            print(f"Postgres connection error: {e}")
+            return None
+    else:
+        try:
+            conn = sqlite3.connect('database.db')
+            conn.row_factory = sqlite3.Row
+            return conn
+        except Exception as e:
+            print(f"SQLite connection error: {e}")
+            return None
 
 def init_db():
     conn = get_db()
@@ -30,38 +41,74 @@ def init_db():
         print("Skipping DB initialization (No connection)")
         return
     
-    with conn.cursor() as cursor:
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                email TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE TABLE IF NOT EXISTS expenses (
-                id TEXT PRIMARY KEY,
-                userId INTEGER NOT NULL,
-                amount REAL NOT NULL,
-                category TEXT NOT NULL,
-                description TEXT,
-                date TEXT NOT NULL,
-                createdAt BIGINT NOT NULL,
-                FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
-            );
-
-            CREATE TABLE IF NOT EXISTS budgets (
-                id SERIAL PRIMARY KEY,
-                userId INTEGER NOT NULL,
-                category TEXT NOT NULL,
-                amount_limit REAL NOT NULL,
-                FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
-                UNIQUE(userId, category)
-            );
-        ''')
+    with conn:
+        cursor = conn.cursor()
+        if IS_POSTGRES:
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    email TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS expenses (
+                    id TEXT PRIMARY KEY,
+                    userId INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    category TEXT NOT NULL,
+                    description TEXT,
+                    date TEXT NOT NULL,
+                    createdAt BIGINT NOT NULL,
+                    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS budgets (
+                    id SERIAL PRIMARY KEY,
+                    userId INTEGER NOT NULL,
+                    category TEXT NOT NULL,
+                    amount_limit REAL NOT NULL,
+                    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+                    UNIQUE(userId, category)
+                );
+            ''')
+        else:
+            # SQLite Syntax
+            cursor.executescript('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    email TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS expenses (
+                    id TEXT PRIMARY KEY,
+                    userId INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    category TEXT NOT NULL,
+                    description TEXT,
+                    date TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS budgets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    userId INTEGER NOT NULL,
+                    category TEXT NOT NULL,
+                    amount_limit REAL NOT NULL,
+                    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+                    UNIQUE(userId, category)
+                );
+            ''')
         conn.commit()
     conn.close()
+
+# Helper for cross-db execution
+def db_exec(cursor, query, params=()):
+    if not IS_POSTGRES:
+        query = query.replace('%s', '?')
+    cursor.execute(query, params)
+    return cursor
 
 @app.route('/')
 def index():
@@ -99,13 +146,19 @@ def signup():
 
     try:
         pw_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        with conn.cursor() as cursor:
-            cursor.execute('INSERT INTO users (username, password_hash, email) VALUES (%s, %s, %s) RETURNING id',
-                         (username, pw_hash, email))
-            user_id = cursor.fetchone()['id']
+        with conn:
+            cursor = conn.cursor()
+            if IS_POSTGRES:
+                cursor.execute('INSERT INTO users (username, password_hash, email) VALUES (%s, %s, %s) RETURNING id',
+                             (username, pw_hash, email))
+                user_id = cursor.fetchone()['id']
+            else:
+                cursor.execute('INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)',
+                             (username, pw_hash, email))
+                user_id = cursor.lastrowid
             conn.commit()
             return jsonify({'message': 'User created successfully', 'userId': user_id})
-    except psycopg2.IntegrityError:
+    except (psycopg2.IntegrityError, sqlite3.IntegrityError):
         return jsonify({'error': 'Username already exists'}), 400
     except Exception as e:
         print(f"Signup error: {e}")
@@ -122,10 +175,9 @@ def login():
     conn = get_db()
     if not conn: return jsonify({'error': 'Database unavailable'}), 500
 
-    with conn.cursor() as cursor:
-        cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
-        user = cursor.fetchone()
-
+    cursor = conn.cursor()
+    db_exec(cursor, 'SELECT * FROM users WHERE username = %s', (username,))
+    user = cursor.fetchone()
     conn.close()
 
     if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
@@ -142,12 +194,12 @@ def get_data(user_id):
     conn = get_db()
     if not conn: return jsonify({'error': 'Database unavailable'}), 500
 
-    with conn.cursor() as cursor:
-        cursor.execute('SELECT * FROM expenses WHERE userId = %s', (user_id,))
-        expenses = [dict(row) for row in cursor.fetchall()]
-        
-        cursor.execute('SELECT * FROM budgets WHERE userId = %s', (user_id,))
-        budgets = [{'category': row['category'], 'limit': row['amount_limit']} for row in cursor.fetchall()]
+    cursor = conn.cursor()
+    db_exec(cursor, 'SELECT * FROM expenses WHERE userId = %s', (user_id,))
+    expenses = [dict(row) for row in cursor.fetchall()]
+    
+    db_exec(cursor, 'SELECT * FROM budgets WHERE userId = %s', (user_id,))
+    budgets = [{'category': row['category'], 'limit': row['amount_limit']} for row in cursor.fetchall()]
     
     conn.close()
     return jsonify({'expenses': expenses, 'budgets': budgets})
@@ -166,27 +218,40 @@ def sync():
     if not conn: return jsonify({'error': 'Database unavailable'}), 500
 
     try:
-        with conn.cursor() as cursor:
+        with conn:
+            cursor = conn.cursor()
             # Sync Expenses
             for exp in expenses:
-                cursor.execute('''
-                    INSERT INTO expenses (id, userId, amount, category, description, date, createdAt)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (id) DO UPDATE SET
-                    amount = EXCLUDED.amount, 
-                    category = EXCLUDED.category,
-                    description = EXCLUDED.description,
-                    date = EXCLUDED.date
-                ''', (exp['id'], user_id, exp['amount'], exp['category'], exp.get('description', ''), exp['date'], exp['createdAt']))
+                if IS_POSTGRES:
+                    cursor.execute('''
+                        INSERT INTO expenses (id, userId, amount, category, description, date, createdAt)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                        amount = EXCLUDED.amount, 
+                        category = EXCLUDED.category,
+                        description = EXCLUDED.description,
+                        date = EXCLUDED.date
+                    ''', (exp['id'], user_id, exp['amount'], exp['category'], exp.get('description', ''), exp['date'], exp['createdAt']))
+                else:
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO expenses (id, userId, amount, category, description, date, createdAt)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (exp['id'], user_id, exp['amount'], exp['category'], exp.get('description', ''), exp['date'], exp['createdAt']))
             
             # Sync Budgets
             for bud in budgets:
-                cursor.execute('''
-                    INSERT INTO budgets (userId, category, amount_limit)
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (userId, category) DO UPDATE SET
-                    amount_limit = EXCLUDED.amount_limit
-                ''', (user_id, bud['category'], bud.get('limit', bud.get('amount_limit'))))
+                if IS_POSTGRES:
+                    cursor.execute('''
+                        INSERT INTO budgets (userId, category, amount_limit)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (userId, category) DO UPDATE SET
+                        amount_limit = EXCLUDED.amount_limit
+                    ''', (user_id, bud['category'], bud.get('limit', bud.get('amount_limit'))))
+                else:
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO budgets (userId, category, amount_limit)
+                        VALUES (?, ?, ?)
+                    ''', (user_id, bud['category'], bud.get('limit', bud.get('amount_limit'))))
             
             conn.commit()
             return jsonify({'message': 'Sync successful'})
@@ -204,9 +269,9 @@ def delete_expense():
     conn = get_db()
     if not conn: return jsonify({'error': 'Database unavailable'}), 500
     
-    with conn.cursor() as cursor:
-        cursor.execute('DELETE FROM expenses WHERE id = %s AND userId = %s', (expense_id, user_id))
-        conn.commit()
+    cursor = conn.cursor()
+    db_exec(cursor, 'DELETE FROM expenses WHERE id = %s AND userId = %s', (expense_id, user_id))
+    conn.commit()
     conn.close()
     return jsonify({'message': 'Expense deleted'})
 
@@ -218,9 +283,9 @@ def delete_budget():
     conn = get_db()
     if not conn: return jsonify({'error': 'Database unavailable'}), 500
     
-    with conn.cursor() as cursor:
-        cursor.execute('DELETE FROM budgets WHERE userId = %s AND category = %s', (user_id, category))
-        conn.commit()
+    cursor = conn.cursor()
+    db_exec(cursor, 'DELETE FROM budgets WHERE userId = %s AND category = %s', (user_id, category))
+    conn.commit()
     conn.close()
     return jsonify({'message': 'Budget deleted'})
 
