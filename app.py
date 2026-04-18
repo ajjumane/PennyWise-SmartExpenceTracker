@@ -6,9 +6,11 @@ import os
 import webbrowser
 import threading
 import time
-from dotenv import load_dotenv
-
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)
