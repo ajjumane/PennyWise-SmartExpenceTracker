@@ -1,5 +1,3 @@
-import psycopg2
-from psycopg2.extras import RealDictCursor
 import sqlite3
 import bcrypt
 from flask import Flask, request, jsonify, send_from_directory, render_template
@@ -15,25 +13,38 @@ load_dotenv()
 app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)
 
+# Use absolute path for SQLite to avoid 'file not found' issues in different environments
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, 'database.db')
+
 DATABASE_URL = os.environ.get('DATABASE_URL')
-IS_POSTGRES = DATABASE_URL is not None and DATABASE_URL.startswith('postgres')
+# Strict check to ensure we only try Postgres if a real URL is provided
+IS_POSTGRES = bool(DATABASE_URL and DATABASE_URL.strip() and DATABASE_URL.startswith('postgres'))
 
 def get_db():
     if IS_POSTGRES:
         try:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
             conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
             return conn
+        except ImportError:
+            print("PostgreSQL driver (psycopg2) not installed. Falling back to SQLite.")
+            return get_sqlite_conn()
         except Exception as e:
             print(f"Postgres connection error: {e}")
             return None
     else:
-        try:
-            conn = sqlite3.connect('database.db')
-            conn.row_factory = sqlite3.Row
-            return conn
-        except Exception as e:
-            print(f"SQLite connection error: {e}")
-            return None
+        return get_sqlite_conn()
+
+def get_sqlite_conn():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except Exception as e:
+        print(f"SQLite connection error at {DB_PATH}: {e}")
+        return None
 
 def init_db():
     conn = get_db()
