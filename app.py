@@ -63,6 +63,14 @@ def send_css(path):
 def send_js(path):
     return send_from_directory('static/js', path)
 
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory('static', 'manifest.json')
+
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory('static', 'sw.js')
+
 @app.route('/api/signup', methods=['POST'])
 def signup():
     data = request.json

@@ -922,3 +922,46 @@ if (mainApp) {
     fetchUserData();
     setupEventListeners();
 }
+
+/* PWA Support & Install Logic */
+let deferredPrompt;
+const pwaBanner = document.getElementById('pwa-install-banner');
+const installBtn = document.getElementById('install-pwa-button');
+const closeBtn = document.getElementById('close-pwa-banner');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (window.innerWidth < 768) {
+        setTimeout(() => {
+            if (pwaBanner) pwaBanner.classList.add('show');
+        }, 3000);
+    }
+});
+
+if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            if (pwaBanner) pwaBanner.classList.remove('show');
+        }
+        deferredPrompt = null;
+    });
+}
+
+if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+        if (pwaBanner) pwaBanner.classList.remove('show');
+    });
+}
+
+// Service Worker Registration
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW Registered'))
+            .catch(err => console.log('SW Error:', err));
+    });
+}
