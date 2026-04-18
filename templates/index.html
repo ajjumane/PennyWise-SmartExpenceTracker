@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pennywise: Tracker Dashboard</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/css/style.css"> 
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/128/17014/17014901.png">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="flex flex-col min-h-screen bg-app-bg text-primary font-outfit overflow-x-hidden"> 
+    
+    <!-- Navbar -->
+    <nav class="navbar" id="main-nav">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2 cursor-pointer group" onclick="location.reload()">
+                <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <span class="text-2xl font-bold tracking-tight text-white">Penny<span class="text-emerald-400">Wise</span></span>
+            </div>
+            
+            <div class="flex items-center space-x-6">
+                <div id="logged-in-controls" class="hidden items-center space-x-4">
+                    <span id="nav-user-display" class="text-sm font-medium text-gray-400"></span>
+                    <button id="logout-button" class="px-5 py-2 rounded-full border border-danger/30 text-danger hover:bg-danger hover:text-white transition-all text-sm font-semibold">Logout</button>
+                </div>
+                <div id="guest-controls" class="flex items-center space-x-4">
+                    <button id="open-login" class="text-gray-300 hover:text-white transition-colors text-sm font-semibold">Sign In</button>
+                    <button id="open-signup" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-full transition-all text-sm font-bold shadow-lg shadow-emerald-600/20">Get Started</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+
+    <!-- Hero Section -->
+    <section id="hero-section" class="hero-section">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="hero-glow"></div>
+        <div class="max-w-4xl mx-auto px-6">
+            <span class="inline-block py-1.5 px-4 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-bold mb-6 tracking-wide animate-pulse">SMART EXPENSE TRACKING</span>
+            <h1 class="text-6xl md:text-8xl font-black text-white mb-8 tracking-tighter leading-tight">
+                Master Your Money <br>With <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-600">Intelligence.</span>
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-400 mb-12 max-w-2xl mx-auto font-light leading-relaxed">
+                The most intuitive way to track spending, set budgets, and scan receipts using AI. Start taking control of your financial future today.
+            </p>
+            <div class="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
+                <button onclick="document.getElementById('main-app').scrollIntoView({behavior: 'smooth'})" class="w-full sm:w-auto px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-lg font-bold transition-all shadow-xl shadow-emerald-600/30 transform hover:-translate-y-1">
+                    Try Live Demo
+                </button>
+                <button id="hero-signup" class="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-lg font-bold transition-all backdrop-blur-md">
+                    Create Free Account
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <div id="main-app" class="w-full max-w-7xl mx-auto px-4 md:px-8 py-20 xl:py-32">
+        <header class="text-center mb-16 relative">
+            <h2 class="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
+                Your <span class="text-emerald-400">Dashboard</span>
+            </h2>
+            <p class="text-gray-400 font-medium text-lg">
+                Overview of your financial activity.
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div class="lg:col-span-4 space-y-8">
+                <!-- Action Card -->
+                <div class="bg-card-bg rounded-[2rem] shadow-2xl p-6 relative border border-white/5 z-[1000]">
+                    <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+                    <div class="flex rounded-xl overflow-hidden mb-8 bg-black/40 p-1.5 border border-white/5">
+                        <button data-tab-button="add-expense-tab" class="flex-1 px-4 py-3 text-white font-semibold rounded-lg bg-emerald-600 shadow-lg transition duration-300 tracking-wide text-sm">
+                            Add Transaction
+                        </button>
+                        <button data-tab-button="set-budget-tab" class="flex-1 px-4 py-3 text-gray-400 hover:text-white font-semibold rounded-lg transition duration-300 tracking-wide text-sm">
+                            Set Budget
+                        </button>
+                        <button data-tab-button="scan-receipt-tab" class="flex-1 px-4 py-3 text-gray-400 hover:text-white font-semibold rounded-lg transition duration-300 tracking-wide text-sm">
+                            Scan Receipt
+                        </button>
+                    </div>
+                    
+                    <div id="add-expense-tab" data-tab-content>
+                        <form id="expense-form" class="space-y-5">
+                            <div>
+                                <label for="expense-amount" class="block text-sm font-medium text-gray-300 mb-1.5">Amount (₹)</label>
+                                <input type="number" id="expense-amount" step="0.01" required placeholder="0.00" class="input-focus block w-full rounded-xl bg-black/30 border border-white/10 text-white shadow-inner p-3.5 transition-all text-lg font-medium">
+                            </div>
+                                <div class="custom-dropdown" id="expense-category-dropdown">
+                                    <div class="dropdown-trigger" id="expense-category-trigger">
+                                        <div class="trigger-label">
+                                            <span class="category-icon-container"></span>
+                                            <span class="category-text">Select Category</span>
+                                        </div>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                    <div class="dropdown-menu" id="expense-category-menu">
+                                        <!-- Options injected by JS -->
+                                    </div>
+                                    <select id="expense-category" required class="hidden-select">
+                                        <option value="" disabled selected>Select Category</option>
+                                    </select>
+                                </div>
+                            <div>
+                                <label for="expense-description" class="block text-sm font-medium text-gray-300 mb-1.5">Description (Optional)</label>
+                                <input type="text" id="expense-description" placeholder="e.g. Dinner" class="input-focus block w-full rounded-xl bg-black/30 border border-white/10 text-white shadow-inner p-3.5 transition-all text-sm">
+                            </div>
+                            <div class="pt-4">
+                                <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-700 text-white font-bold py-4 px-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:-translate-y-1 transition-all duration-300 text-lg tracking-wide">
+                                    Commit Transaction
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="set-budget-tab" data-tab-content class="hidden">
+                         <form id="budget-form" class="space-y-5">
+                                <div class="custom-dropdown" id="budget-category-dropdown">
+                                    <div class="dropdown-trigger" id="budget-category-trigger">
+                                        <div class="trigger-label">
+                                            <span class="category-icon-container"></span>
+                                            <span class="category-text">Select Category</span>
+                                        </div>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                    <div class="dropdown-menu" id="budget-category-menu">
+                                        <!-- Options injected by JS -->
+                                    </div>
+                                    <select id="budget-category" required class="hidden-select">
+                                        <option value="" disabled selected>Select Category</option>
+                                    </select>
+                                </div>
+                            <div>
+                                <label for="budget-limit" class="block text-sm font-medium text-gray-300 mb-1.5">Monthly Limit (₹)</label>
+                                <input type="number" id="budget-limit" step="0.01" required placeholder="5000.00" class="input-focus block w-full rounded-xl bg-black/30 border border-white/10 text-white shadow-inner p-3.5 transition-all text-lg font-medium">
+                            </div>
+                            <div class="pt-4">
+                                <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-700 text-white font-bold py-4 px-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:-translate-y-1 transition-all duration-300 text-lg tracking-wide">
+                                    Save Budget
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="scan-receipt-tab" data-tab-content class="hidden">
+                        <div id="drop-zone" class="border-2 border-dashed border-white/10 rounded-[2rem] p-8 text-center flex flex-col items-center justify-center transition-all hover:bg-white/5 cursor-pointer group">
+                            <div class="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </div>
+                            <p class="text-white font-semibold mb-2">Upload Receipt</p>
+                            <p class="text-gray-400 text-xs px-4">Drag and drop or click to upload a clear image of your bill</p>
+                            <input type="file" id="receipt-upload" accept="image/*" class="hidden">
+                        </div>
+                        
+                        <div id="scanning-viewer" class="hidden mt-6 relative overflow-hidden rounded-2xl bg-black/40 border border-white/5 p-2">
+                            <img id="scanned-image-preview" src="#" alt="Receipt Preview" class="w-full rounded-xl">
+                            <div id="scan-line" class="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)] z-10 hidden"></div>
+                            <div id="ocr-status" class="mt-4 text-center text-emerald-400 text-sm font-medium animate-pulse">Initializing Scanner...</div>
+                        </div>
+                        
+                        <div id="scan-result-card" class="hidden mt-6 bg-black/40 p-5 rounded-2xl border border-emerald-500/30 flex flex-col h-[450px]">
+                            <h4 class="text-emerald-400 font-bold mb-4 text-center shrink-0">Select Items to Add</h4>
+                            
+                             <!-- Dynamic Item List -->
+                            <div id="scanned-items-container" class="flex-grow overflow-y-auto pr-2 custom-scrollbar space-y-3 mb-2">
+                                <!-- Item rows injected here -->
+                            </div>
+                            
+                            <button id="add-manual-item" class="w-full py-2 mb-4 border border-dashed border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-semibold hover:bg-emerald-500/10 transition flex items-center justify-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                Add Missing Item
+                            </button>
+
+                            <div class="flex justify-between items-center mb-6 px-1 shrink-0">
+                                <div class="flex justify-between items-center mb-4 px-1">
+                                    <span class="text-gray-400 text-sm font-medium">Selected Total</span>
+                                    <span id="scan-selected-total" class="text-xl font-bold text-emerald-400">₹0.00</span>
+                                </div>
+                                <div class="flex space-x-3">
+                                    <button id="cancel-scan" class="flex-1 bg-white/5 text-gray-400 font-bold py-3.5 rounded-xl hover:bg-white/10 transition-all text-sm tracking-wide">Discard</button>
+                                    <button id="confirm-scan" class="flex-[2] bg-emerald-600 text-white font-bold py-3.5 rounded-xl hover:bg-emerald-500 transition-all text-sm tracking-wide shadow-lg shadow-emerald-600/30">Add Selected Expenses</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <!-- Budgets Status -->
+                <div class="bg-card-bg rounded-[2rem] shadow-2xl p-6 border border-white/5">
+                    <h3 class="text-2xl font-bold text-white mb-6 flex items-center tracking-tight">
+                        Monthly Budgets
+                    </h3>
+                    <div id="budget-warning-banner" class="hidden bg-danger/10 text-danger border border-danger/30 p-4 rounded-xl font-medium text-sm text-center mb-6 shadow-sm">
+                    </div>
+                    <div id="budget-alerts-container" class="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="lg:col-span-8 space-y-8 flex flex-col">
+                <!-- Transactions List -->
+                <div class="bg-card-bg rounded-[2rem] shadow-2xl p-6 border border-white/5 flex-grow">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 border-b border-white/10 pb-4">
+                        <div>
+                            <h3 class="text-3xl font-bold text-white tracking-tight">Recent Transactions</h3>
+                            <p class="text-gray-400 mt-2">Manage and view your entries</p>
+                        </div>
+                        <div class="mt-4 md:mt-0 text-left md:text-right">
+                            <span class="block text-sm text-gray-400">Monthly Expenses</span>
+                            <span id="monthly-total-spending" class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-500">₹0.00</span>
+                        </div>
+                    </div>
+                    
+                    <div id="filter-controls" class="bg-black/20 p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mb-6 relative">
+                        <div class="flex-1">
+                            <input type="text" id="filter-category-search" placeholder="Search by Category (e.g. Food)" class="input-focus block w-full rounded-xl bg-black/40 border border-white/10 text-white shadow-inner p-3.5 text-sm">
+                        </div>
+                        <div class="flex-1 relative flex items-center space-x-2 w-full">
+                            <input type="date" id="filter-date" class="input-focus block w-full rounded-xl bg-black/40 border border-white/10 text-white shadow-inner p-3.5 text-sm">
+                            <button id="clear-date-filter" class="absolute right-2 top-2 bg-danger/10 text-danger border border-danger/30 p-1.5 rounded-lg hover:bg-danger hover:text-white transition duration-300 shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="expense-list" class="divide-y divide-white/5 max-h-[450px] overflow-y-auto pr-3 custom-scrollbar">
+                    </div>
+                </div>
+
+                <div class="bg-card-bg rounded-[2rem] shadow-2xl p-6 border border-white/5 relative">
+                     <h3 class="absolute top-6 left-6 text-xl font-bold text-white tracking-tight z-10">Spending Breakdown</h3>
+                     <div id="chart-container" class="w-full h-[350px] flex items-center justify-center pt-8">
+                         <canvas id="spendingChart"></canvas>
+                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="auth-modal" class="modal-overlay">
+        <div class="modal-content auth-container premium-glass">
+            <button id="close-modal" class="absolute top-6 right-6 text-gray-500 hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+
+            <form id="signupForm" class="space-y-5">
+                <h3 class="text-4xl font-black text-white mb-2 text-center tracking-tight">Create Account</h3>
+                <div class="flex justify-center items-center text-sm mb-8 pb-2 space-x-2 border-b border-white/5 pb-6">
+                    <p class="text-gray-400">Already a member?</p>
+                    <a href="#" id="toLogin" class="text-emerald-400 font-bold hover:text-emerald-300 transition-colors">Sign in</a>
+                </div>
+                
+                <div class="space-y-4">
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-emerald-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                        <input type="text" id="signupUsername" placeholder="Username" required class="rounded-input pl-12">
+                    </div>
+                    
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-emerald-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <input type="email" id="signupEmail" placeholder="Email (Optional)" class="rounded-input pl-12">
+                    </div>
+
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-emerald-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <input type="password" id="signupPassword" placeholder="Password" required class="rounded-input pl-12">
+                    </div>
+                </div>
+                
+                <button type="submit" class="auth-button mt-4">Create Account</button>
+            </form>
+
+            <form id="loginForm" class="space-y-5 hidden">
+                <h3 class="text-4xl font-black text-white mb-2 text-center tracking-tight">Welcome Back</h3>
+                <div class="flex justify-center items-center text-sm mb-8 pb-2 space-x-2 border-b border-white/5 pb-6">
+                    <p class="text-gray-400">New here?</p>
+                    <a href="#" id="toSignup" class="text-emerald-400 font-bold hover:text-emerald-300 transition-colors">Join now</a>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-emerald-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                        <input type="text" id="loginUsername" placeholder="Username" required class="rounded-input pl-12">
+                    </div>
+
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-emerald-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </div>
+                        <input type="password" id="loginPassword" placeholder="Password" required class="rounded-input pl-12">
+                    </div>
+                </div>
+
+                <button type="submit" class="auth-button mt-4">Sign In</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-black/40 border-t border-white/5 py-12 mt-20">
+        <div class="max-w-7xl mx-auto px-8 flex flex-col md:flex-row justify-between items-center">
+            <div class="mb-8 md:mb-0">
+                <div class="flex items-center space-x-2 mb-4">
+                    <div class="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <span class="text-xl font-bold text-white">PennyWise</span>
+                </div>
+                <p class="text-gray-500 text-sm">© 2024 PennyWise Inc. All rights reserved.</p>
+            </div>
+            <div class="flex space-x-12">
+                <div>
+                    <h4 class="text-white font-bold mb-4">Product</h4>
+                    <ul class="text-gray-500 text-sm space-y-2">
+                        <li><a href="#" class="hover:text-emerald-400 transition-colors">Features</a></li>
+                        <li><a href="#" class="hover:text-emerald-400 transition-colors">Security</a></li>
+                        <li><a href="#" class="hover:text-emerald-400 transition-colors">Pricing</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold mb-4">Company</h4>
+                    <ul class="text-gray-500 text-sm space-y-2">
+                        <li><a href="#" class="hover:text-emerald-400 transition-colors">About</a></li>
+                        <li><a href="#" class="hover:text-emerald-400 transition-colors">Careers</a></li>
+                        <li><a href="#" class="hover:text-emerald-400 transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <script defer src="/js/script.js"></script>
+</body>
+</html>
