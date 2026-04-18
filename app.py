@@ -1,4 +1,5 @@
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import bcrypt
 from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_cors import CORS
@@ -6,26 +7,37 @@ import os
 import webbrowser
 import threading
 import time
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)
 
-DB_PATH = 'database.db'
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        return conn
+    except Exception as e:
+        print(f"Database connection error: {e}")
+        return None
 
 def init_db():
-    with get_db() as conn:
-        conn.executescript('''
+    conn = get_db()
+    if not conn:
+        print("Skipping DB initialization (No connection)")
+        return
+    
+    with conn.cursor() as cursor:
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 email TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE TABLE IF NOT EXISTS expenses (
@@ -35,20 +47,21 @@ def init_db():
                 category TEXT NOT NULL,
                 description TEXT,
                 date TEXT NOT NULL,
-                createdAt INTEGER NOT NULL,
-                FOREIGN KEY (userId) REFERENCES users(id)
+                createdAt BIGINT NOT NULL,
+                FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
             );
 
             CREATE TABLE IF NOT EXISTS budgets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 userId INTEGER NOT NULL,
                 category TEXT NOT NULL,
                 amount_limit REAL NOT NULL,
-                FOREIGN KEY (userId) REFERENCES users(id),
+                FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
                 UNIQUE(userId, category)
             );
         ''')
         conn.commit()
+    conn.close()
 
 @app.route('/')
 def index():
@@ -81,20 +94,24 @@ def signup():
     if not username or not password:
         return jsonify({'error': 'Username and password required'}), 400
 
+    conn = get_db()
+    if not conn: return jsonify({'error': 'Database unavailable'}), 500
+
     try:
         pw_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        with get_db() as conn:
-            cursor = conn.cursor()
-            cursor.execute('INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)',
+        with conn.cursor() as cursor:
+            cursor.execute('INSERT INTO users (username, password_hash, email) VALUES (%s, %s, %s) RETURNING id',
                          (username, pw_hash, email))
-            user_id = cursor.lastrowid
+            user_id = cursor.fetchone()['id']
             conn.commit()
             return jsonify({'message': 'User created successfully', 'userId': user_id})
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         return jsonify({'error': 'Username already exists'}), 400
     except Exception as e:
         print(f"Signup error: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -102,8 +119,14 @@ def login():
     username = data.get('username')
     password = data.get('password')
 
-    with get_db() as conn:
-        user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    conn = get_db()
+    if not conn: return jsonify({'error': 'Database unavailable'}), 500
+
+    with conn.cursor() as cursor:
+        cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+        user = cursor.fetchone()
+
+    conn.close()
 
     if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
         return jsonify({
@@ -116,10 +139,17 @@ def login():
 
 @app.get('/api/data/<int:user_id>')
 def get_data(user_id):
-    with get_db() as conn:
-        expenses = [dict(row) for row in conn.execute('SELECT * FROM expenses WHERE userId = ?', (user_id,)).fetchall()]
-        budgets = [{'category': row['category'], 'limit': row['amount_limit']} 
-                   for row in conn.execute('SELECT * FROM budgets WHERE userId = ?', (user_id,)).fetchall()]
+    conn = get_db()
+    if not conn: return jsonify({'error': 'Database unavailable'}), 500
+
+    with conn.cursor() as cursor:
+        cursor.execute('SELECT * FROM expenses WHERE userId = %s', (user_id,))
+        expenses = [dict(row) for row in cursor.fetchall()]
+        
+        cursor.execute('SELECT * FROM budgets WHERE userId = %s', (user_id,))
+        budgets = [{'category': row['category'], 'limit': row['amount_limit']} for row in cursor.fetchall()]
+    
+    conn.close()
     return jsonify({'expenses': expenses, 'budgets': budgets})
 
 @app.route('/api/sync', methods=['POST'])
@@ -132,21 +162,30 @@ def sync():
     if not user_id:
         return jsonify({'error': 'User ID required'}), 400
 
+    conn = get_db()
+    if not conn: return jsonify({'error': 'Database unavailable'}), 500
+
     try:
-        with get_db() as conn:
-            cursor = conn.cursor()
+        with conn.cursor() as cursor:
             # Sync Expenses
             for exp in expenses:
                 cursor.execute('''
-                    INSERT OR REPLACE INTO expenses (id, userId, amount, category, description, date, createdAt)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO expenses (id, userId, amount, category, description, date, createdAt)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (id) DO UPDATE SET
+                    amount = EXCLUDED.amount, 
+                    category = EXCLUDED.category,
+                    description = EXCLUDED.description,
+                    date = EXCLUDED.date
                 ''', (exp['id'], user_id, exp['amount'], exp['category'], exp.get('description', ''), exp['date'], exp['createdAt']))
             
             # Sync Budgets
             for bud in budgets:
                 cursor.execute('''
-                    INSERT OR REPLACE INTO budgets (userId, category, amount_limit)
-                    VALUES (?, ?, ?)
+                    INSERT INTO budgets (userId, category, amount_limit)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (userId, category) DO UPDATE SET
+                    amount_limit = EXCLUDED.amount_limit
                 ''', (user_id, bud['category'], bud.get('limit', bud.get('amount_limit'))))
             
             conn.commit()
@@ -154,15 +193,21 @@ def sync():
     except Exception as e:
         print(f"Sync error: {e}")
         return jsonify({'error': 'Sync failed'}), 500
+    finally:
+        conn.close()
 
 @app.route('/api/expenses/delete', methods=['POST'])
 def delete_expense():
     data = request.json
     user_id = data.get('userId')
     expense_id = data.get('expenseId')
-    with get_db() as conn:
-        conn.execute('DELETE FROM expenses WHERE id = ? AND userId = ?', (expense_id, user_id))
+    conn = get_db()
+    if not conn: return jsonify({'error': 'Database unavailable'}), 500
+    
+    with conn.cursor() as cursor:
+        cursor.execute('DELETE FROM expenses WHERE id = %s AND userId = %s', (expense_id, user_id))
         conn.commit()
+    conn.close()
     return jsonify({'message': 'Expense deleted'})
 
 @app.route('/api/budgets/delete', methods=['POST'])
@@ -170,9 +215,13 @@ def delete_budget():
     data = request.json
     user_id = data.get('userId')
     category = data.get('category')
-    with get_db() as conn:
-        conn.execute('DELETE FROM budgets WHERE userId = ? AND category = ?', (user_id, category))
+    conn = get_db()
+    if not conn: return jsonify({'error': 'Database unavailable'}), 500
+    
+    with conn.cursor() as cursor:
+        cursor.execute('DELETE FROM budgets WHERE userId = %s AND category = %s', (user_id, category))
         conn.commit()
+    conn.close()
     return jsonify({'message': 'Budget deleted'})
 
 def open_browser():
@@ -181,6 +230,6 @@ def open_browser():
 
 if __name__ == '__main__':
     init_db()
-    if not os.environ.get("WERKZEUG_RUN_MAIN"):
+    if not os.environ.get("WERKZEUG_RUN_MAIN") and not os.environ.get("VERCEL"):
         threading.Thread(target=open_browser).start()
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=int(os.environ.get("PORT", 5000)))
