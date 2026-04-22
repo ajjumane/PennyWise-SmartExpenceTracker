@@ -22,30 +22,77 @@
 </head>
 <body class="flex flex-col min-h-screen bg-app-bg text-primary font-outfit overflow-x-hidden"> 
     
-    <!-- Navbar -->
     <nav class="navbar" id="main-nav">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-2 cursor-pointer group" onclick="location.reload()">
-                <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+        <div class="max-w-full mx-auto px-6 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <!-- Single sidebar toggle button - shown via JS when logged in -->
+                <button id="sidebar-toggle" style="display:none;align-items:center;justify-content:center;" class="w-10 h-10 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 cursor-pointer transition-all" title="Toggle Sidebar">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+                <div class="flex items-center space-x-2 cursor-pointer" onclick="location.reload()">
+                    <div class="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <span class="text-xl font-bold tracking-tight text-white">Penny<span class="text-emerald-400">Wise</span></span>
                 </div>
-                <span class="text-2xl font-bold tracking-tight text-white">Penny<span class="text-emerald-400">Wise</span></span>
             </div>
-            
-            <div class="flex items-center space-x-6">
-                <div id="logged-in-controls" class="hidden items-center space-x-4">
+            <div class="flex items-center space-x-4">
+                <div id="logged-in-controls" class="items-center space-x-3" style="display:none">
                     <span id="nav-user-display" class="text-sm font-medium text-gray-400"></span>
-                    <button id="logout-button" class="px-5 py-2 rounded-full border border-danger/30 text-danger hover:bg-danger hover:text-white transition-all text-sm font-semibold">Logout</button>
+                    <button id="logout-button" class="px-4 py-2 rounded-full border border-danger/30 text-danger hover:bg-danger hover:text-white transition-all text-sm font-semibold">Logout</button>
                 </div>
-                <div id="guest-controls" class="flex items-center space-x-4">
+                <div id="guest-controls" class="flex items-center space-x-3">
                     <button id="open-login" class="text-gray-300 hover:text-white transition-colors text-sm font-semibold">Sign In</button>
-                    <button id="open-signup" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-full transition-all text-sm font-bold shadow-lg shadow-emerald-600/20">Get Started</button>
+                    <button id="open-signup" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-full transition-all text-sm font-bold shadow-lg shadow-emerald-600/20">Get Started</button>
                 </div>
             </div>
         </div>
     </nav>
+    
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[1001] hidden"></div>
+    <!-- Sidebar: starts hidden, JS shows it for logged-in users -->
+    <aside id="sidebar" class="sidebar-nav sidebar-hidden">
+        <div style="padding:1.5rem 1.5rem 0.5rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+                <div style="width:2rem;height:2rem;background:linear-gradient(135deg,#34d399,#059669);border-radius:0.625rem;display:flex;align-items:center;justify-content:center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" style="width:1.1rem;height:1.1rem;color:white;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+                <span style="font-size:1.1rem;font-weight:700;color:white;">PennyWise</span>
+            </div>
+            <!-- Close button inside sidebar -->
+            <button id="sidebar-close-btn" style="width:2rem;height:2rem;border-radius:0.5rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Close Sidebar">
+                <svg xmlns="http://www.w3.org/2000/svg" style="width:1rem;height:1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+        </div>
+        <div style="padding:0.5rem 1rem;">
+                <button data-view-link="overview-view" class="sidebar-link active">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                    <span>Overview</span>
+                </button>
+                <button data-view-link="subscriptions-view" class="sidebar-link">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span>Fixed Expenses</span>
+                </button>
+                <button data-view-link="budgets-view" class="sidebar-link">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    <span>Monthly Budgets</span>
+                </button>
+                <button data-view-link="analytics-view" class="sidebar-link">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>
+                    <span>Analytics</span>
+                </button>
+        </div>
+
+        <div style="margin-top:auto;padding:1rem 1.5rem 1.5rem;">
+            <div id="sidebar-user-info" class="hidden rounded-2xl bg-white/5 p-4 border border-white/5">
+                <div class="text-xs text-gray-500 mb-1">Logged in as</div>
+                <div id="sidebar-username" class="text-sm font-bold text-white truncate"></div>
+            </div>
+        </div>
+    </aside>
+
 
 
     <!-- Hero Section -->
@@ -62,7 +109,7 @@
                 The most intuitive way to track spending, set budgets, and scan receipts using AI. Start taking control of your financial future today.
             </p>
             <div class="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
-                <button onclick="document.getElementById('main-app').scrollIntoView({behavior: 'smooth'})" class="w-full sm:w-auto px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-lg font-bold transition-all shadow-xl shadow-emerald-600/30 transform hover:-translate-y-1">
+                <button onclick="document.getElementById('hero-section').classList.add('hidden'); document.getElementById('main-app').classList.remove('hidden');" class="w-full sm:w-auto px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-lg font-bold transition-all shadow-xl shadow-emerald-600/30 transform hover:-translate-y-1">
                     Try Live Demo
                 </button>
                 <button id="hero-signup" class="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-lg font-bold transition-all backdrop-blur-md">
@@ -72,197 +119,251 @@
         </div>
     </section>
 
-    <div id="main-app" class="w-full max-w-7xl mx-auto px-4 md:px-8 py-20 xl:py-32">
-        <header class="text-center mb-16 relative">
-            <h2 class="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
-                Your <span class="text-emerald-400">Dashboard</span>
-            </h2>
-            <p class="text-gray-400 font-medium text-lg">
-                Overview of your financial activity.
-            </p>
-        </header>
+    <div id="main-content-wrapper" class="flex-grow transition-all">
+        <div id="main-app" class="w-full max-w-7xl mx-auto px-4 md:px-8 py-20 xl:py-32 hidden">
+            <!-- View: Overview -->
+            <div id="overview-view" class="view-content space-y-12">
+                <header class="text-center mb-16 relative">
+                    <h2 class="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
+                        Your <span class="text-emerald-400">Dashboard</span>
+                    </h2>
+                    <p class="text-gray-400 font-medium text-lg">Overview of your financial activity.</p>
+                </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div class="lg:col-span-4 space-y-8">
-                <!-- Action Card -->
-                <div class="bg-card-bg rounded-[2rem] shadow-2xl p-6 relative border border-white/5 z-[1000]">
-                    <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
-                    <div class="flex rounded-xl overflow-hidden mb-8 bg-black/40 p-1.5 border border-white/5">
-                        <button data-tab-button="add-expense-tab" class="flex-1 px-4 py-3 text-white font-semibold rounded-lg bg-emerald-600 shadow-lg transition duration-300 tracking-wide text-sm">
-                            Add Transaction
-                        </button>
-                        <button data-tab-button="set-budget-tab" class="flex-1 px-4 py-3 text-gray-400 hover:text-white font-semibold rounded-lg transition duration-300 tracking-wide text-sm">
-                            Set Budget
-                        </button>
-                        <button data-tab-button="scan-receipt-tab" class="flex-1 px-4 py-3 text-gray-400 hover:text-white font-semibold rounded-lg transition duration-300 tracking-wide text-sm">
-                            Scan Receipt
-                        </button>
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-4 space-y-8">
+                        <!-- Action Card (Already existed) -->
+                        <div class="bg-card-bg rounded-[2rem] shadow-2xl p-6 relative border border-white/5 z-[1000]">
+                            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+                            <div class="flex rounded-xl overflow-hidden mb-8 bg-black/40 p-1.5 border border-white/5">
+                                <button data-tab-button="add-expense-tab" class="flex-1 px-2 py-3 text-white font-semibold rounded-lg bg-emerald-600 shadow-lg transition duration-300 tracking-wide text-[11px] sm:text-xs">
+                                    Add Entry
+                                </button>
+                                <button data-tab-button="set-budget-tab" class="flex-1 px-2 py-3 text-gray-400 hover:text-white font-semibold rounded-lg transition duration-300 tracking-wide text-[11px] sm:text-xs">
+                                    Set Budget
+                                </button>
+                                <button data-tab-button="scan-receipt-tab" class="flex-1 px-2 py-3 text-gray-400 hover:text-white font-semibold rounded-lg transition duration-300 tracking-wide text-[11px] sm:text-xs">
+                                    AI Scan
+                                </button>
+                            </div>
+                            
+                            <div id="add-expense-tab" data-tab-content>
+                                <form id="expense-form" class="space-y-5">
+                                    <div>
+                                        <label for="expense-amount" class="block text-sm font-medium text-gray-300 mb-1.5">Amount (₹)</label>
+                                        <input type="number" id="expense-amount" step="0.01" required placeholder="0.00" class="input-focus block w-full rounded-xl bg-black/30 border border-white/10 text-white shadow-inner p-3.5 transition-all text-lg font-medium">
+                                    </div>
+                                    <div class="custom-dropdown" id="expense-category-dropdown">
+                                        <div class="dropdown-trigger" id="expense-category-trigger">
+                                            <div class="trigger-label">
+                                                <span class="category-icon-container"></span>
+                                                <span class="category-text">Select Category</span>
+                                            </div>
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                        <div class="dropdown-menu" id="expense-category-menu"></div>
+                                        <select id="expense-category" required class="hidden-select"></select>
+                                    </div>
+                                    <div>
+                                        <label for="expense-description" class="block text-sm font-medium text-gray-300 mb-1.5">Description (Optional)</label>
+                                        <input type="text" id="expense-description" placeholder="e.g. Dinner" class="input-focus block w-full rounded-xl bg-black/30 border border-white/10 text-white shadow-inner p-3.5 transition-all text-sm">
+                                    </div>
+                                    <div class="pt-4">
+                                        <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-700 text-white font-bold py-4 px-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:-translate-y-1 transition-all duration-300 text-lg tracking-wide">
+                                            Commit Transaction
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div id="set-budget-tab" data-tab-content class="hidden">
+                                 <form id="budget-form" class="space-y-5">
+                                        <div class="custom-dropdown" id="budget-category-dropdown">
+                                            <div class="dropdown-trigger" id="budget-category-trigger">
+                                                <div class="trigger-label">
+                                                    <span class="category-icon-container"></span>
+                                                    <span class="category-text">Select Category</span>
+                                                </div>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                            <div class="dropdown-menu" id="budget-category-menu"></div>
+                                            <select id="budget-category" required class="hidden-select"></select>
+                                        </div>
+                                    <div>
+                                        <label for="budget-limit" class="block text-sm font-medium text-gray-300 mb-1.5">Monthly Limit (₹)</label>
+                                        <input type="number" id="budget-limit" step="0.01" required placeholder="5000.00" class="input-focus block w-full rounded-xl bg-black/30 border border-white/10 text-white shadow-inner p-3.5 transition-all text-lg font-medium">
+                                    </div>
+                                    <div class="pt-4">
+                                        <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-700 text-white font-bold py-4 px-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:-translate-y-1 transition-all duration-300 text-lg tracking-wide">
+                                            Save Budget
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div id="scan-receipt-tab" data-tab-content class="hidden">
+                                <div id="drop-zone" class="border-2 border-dashed border-white/10 rounded-[2rem] p-8 text-center flex flex-col items-center justify-center transition-all hover:bg-white/5 cursor-pointer group">
+                                    <div class="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                    </div>
+                                    <p class="text-white font-semibold mb-2 text-sm">Upload Receipt</p>
+                                    <p class="text-gray-400 text-[10px] px-2">Click or drop image for AI scan</p>
+                                    <input type="file" id="receipt-upload" accept="image/*" class="hidden">
+                                </div>
+                                
+                                <div id="scanning-viewer" class="hidden mt-6 relative overflow-hidden rounded-2xl bg-black/40 border border-white/5 p-2">
+                                    <img id="scanned-image-preview" src="#" alt="Receipt Preview" class="w-full rounded-xl">
+                                    <div id="scan-line" class="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)] z-10 hidden"></div>
+                                    <div id="ocr-status" class="mt-4 text-center text-emerald-400 text-sm font-medium animate-pulse">Initializing Scanner...</div>
+                                </div>
+                                
+                                <div id="scan-result-card" class="hidden mt-6 bg-black/40 p-5 rounded-2xl border border-emerald-500/30 flex flex-col h-[400px]">
+                                    <h4 class="text-emerald-400 font-bold mb-4 text-center shrink-0 text-sm">Select Items to Add</h4>
+                                    <div id="scanned-items-container" class="flex-grow overflow-y-auto pr-2 custom-scrollbar space-y-3 mb-2"></div>
+                                    <button id="add-manual-item" class="w-full py-2 mb-4 border border-dashed border-emerald-500/30 rounded-xl text-emerald-400 text-[10px] font-semibold hover:bg-emerald-500/10 transition">Add Missing Item</button>
+                                    <div class="space-y-4 shrink-0">
+                                        <div class="flex justify-between items-center px-1">
+                                            <span class="text-gray-400 text-xs">Total Selected</span>
+                                            <span id="scan-selected-total" class="text-lg font-bold text-emerald-400">₹0.00</span>
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <button id="cancel-scan" class="flex-1 bg-white/5 text-gray-400 font-bold py-2.5 rounded-xl text-xs">Discard</button>
+                                            <button id="confirm-scan" class="flex-[2] bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-500/20">Add Expenses</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mini Chart Summary -->
+                        <div class="bg-card-bg rounded-[2rem] shadow-2xl p-6 border border-white/5 block">
+                            <h3 class="text-lg font-bold text-white mb-4 tracking-tight">Spending Breakdown</h3>
+                            <div id="mini-chart-container">
+                                <canvas id="miniSpendingChart"></canvas>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div id="add-expense-tab" data-tab-content>
-                        <form id="expense-form" class="space-y-5">
-                            <div>
-                                <label for="expense-amount" class="block text-sm font-medium text-gray-300 mb-1.5">Amount (₹)</label>
-                                <input type="number" id="expense-amount" step="0.01" required placeholder="0.00" class="input-focus block w-full rounded-xl bg-black/30 border border-white/10 text-white shadow-inner p-3.5 transition-all text-lg font-medium">
-                            </div>
-                                <div class="custom-dropdown" id="expense-category-dropdown">
-                                    <div class="dropdown-trigger" id="expense-category-trigger">
-                                        <div class="trigger-label">
-                                            <span class="category-icon-container"></span>
-                                            <span class="category-text">Select Category</span>
-                                        </div>
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    </div>
-                                    <div class="dropdown-menu" id="expense-category-menu">
-                                        <!-- Options injected by JS -->
-                                    </div>
-                                    <select id="expense-category" required class="hidden-select">
-                                        <option value="" disabled selected>Select Category</option>
-                                    </select>
+                    <div class="lg:col-span-8 space-y-8 flex flex-col">
+                        <!-- Transactions List (Was already here) -->
+                        <div class="bg-card-bg rounded-[2rem] shadow-2xl p-6 border border-white/5 flex-grow">
+                             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 border-b border-white/10 pb-4 gap-4">
+                                <div>
+                                    <h3 class="text-3xl font-bold text-white tracking-tight">Recent Transactions</h3>
+                                    <p class="text-gray-400 mt-2 text-sm">Review your latest spending</p>
                                 </div>
-                            <div>
-                                <label for="expense-description" class="block text-sm font-medium text-gray-300 mb-1.5">Description (Optional)</label>
-                                <input type="text" id="expense-description" placeholder="e.g. Dinner" class="input-focus block w-full rounded-xl bg-black/30 border border-white/10 text-white shadow-inner p-3.5 transition-all text-sm">
-                            </div>
-                            <div class="pt-4">
-                                <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-700 text-white font-bold py-4 px-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:-translate-y-1 transition-all duration-300 text-lg tracking-wide">
-                                    Commit Transaction
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div id="set-budget-tab" data-tab-content class="hidden">
-                         <form id="budget-form" class="space-y-5">
-                                <div class="custom-dropdown" id="budget-category-dropdown">
-                                    <div class="dropdown-trigger" id="budget-category-trigger">
-                                        <div class="trigger-label">
-                                            <span class="category-icon-container"></span>
-                                            <span class="category-text">Select Category</span>
-                                        </div>
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    </div>
-                                    <div class="dropdown-menu" id="budget-category-menu">
-                                        <!-- Options injected by JS -->
-                                    </div>
-                                    <select id="budget-category" required class="hidden-select">
-                                        <option value="" disabled selected>Select Category</option>
-                                    </select>
+                                <div class="text-left sm:text-right">
+                                    <span class="block text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Monthly Spent</span>
+                                    <span id="monthly-total-spending" class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-500">₹0.00</span>
                                 </div>
-                            <div>
-                                <label for="budget-limit" class="block text-sm font-medium text-gray-300 mb-1.5">Monthly Limit (₹)</label>
-                                <input type="number" id="budget-limit" step="0.01" required placeholder="5000.00" class="input-focus block w-full rounded-xl bg-black/30 border border-white/10 text-white shadow-inner p-3.5 transition-all text-lg font-medium">
-                            </div>
-                            <div class="pt-4">
-                                <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-700 text-white font-bold py-4 px-4 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:-translate-y-1 transition-all duration-300 text-lg tracking-wide">
-                                    Save Budget
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div id="scan-receipt-tab" data-tab-content class="hidden">
-                        <div id="drop-zone" class="border-2 border-dashed border-white/10 rounded-[2rem] p-8 text-center flex flex-col items-center justify-center transition-all hover:bg-white/5 cursor-pointer group">
-                            <div class="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                </svg>
-                            </div>
-                            <p class="text-white font-semibold mb-2">Upload Receipt</p>
-                            <p class="text-gray-400 text-xs px-4">Drag and drop or click to upload a clear image of your bill</p>
-                            <input type="file" id="receipt-upload" accept="image/*" class="hidden">
-                        </div>
-                        
-                        <div id="scanning-viewer" class="hidden mt-6 relative overflow-hidden rounded-2xl bg-black/40 border border-white/5 p-2">
-                            <img id="scanned-image-preview" src="#" alt="Receipt Preview" class="w-full rounded-xl">
-                            <div id="scan-line" class="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)] z-10 hidden"></div>
-                            <div id="ocr-status" class="mt-4 text-center text-emerald-400 text-sm font-medium animate-pulse">Initializing Scanner...</div>
-                        </div>
-                        
-                        <div id="scan-result-card" class="hidden mt-6 bg-black/40 p-5 rounded-2xl border border-emerald-500/30 flex flex-col h-[450px]">
-                            <h4 class="text-emerald-400 font-bold mb-4 text-center shrink-0">Select Items to Add</h4>
-                            
-                             <!-- Dynamic Item List -->
-                            <div id="scanned-items-container" class="flex-grow overflow-y-auto pr-2 custom-scrollbar space-y-3 mb-2">
-                                <!-- Item rows injected here -->
                             </div>
                             
-                            <button id="add-manual-item" class="w-full py-2 mb-4 border border-dashed border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-semibold hover:bg-emerald-500/10 transition flex items-center justify-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                </svg>
-                                Add Missing Item
-                            </button>
-
-                            <div class="flex justify-between items-center mb-6 px-1 shrink-0">
-                                <div class="flex justify-between items-center mb-4 px-1">
-                                    <span class="text-gray-400 text-sm font-medium">Selected Total</span>
-                                    <span id="scan-selected-total" class="text-xl font-bold text-emerald-400">₹0.00</span>
-                                </div>
-                                <div class="flex space-x-3">
-                                    <button id="cancel-scan" class="flex-1 bg-white/5 text-gray-400 font-bold py-3.5 rounded-xl hover:bg-white/10 transition-all text-sm tracking-wide">Discard</button>
-                                    <button id="confirm-scan" class="flex-[2] bg-emerald-600 text-white font-bold py-3.5 rounded-xl hover:bg-emerald-500 transition-all text-sm tracking-wide shadow-lg shadow-emerald-600/30">Add Selected Expenses</button>
-                                </div>
+                            <div id="filter-controls" class="bg-black/20 p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mb-6 relative">
+                                <div class="flex-1 text-sm"><input type="text" id="filter-category-search" placeholder="Filter by category..." class="input-focus block w-full rounded-xl bg-black/40 border border-white/10 text-white p-3.5"></div>
+                                <div class="flex-1 relative flex items-center space-x-2"><input type="date" id="filter-date" class="input-focus block w-full rounded-xl bg-black/40 border border-white/10 text-white p-3.5 text-sm"></div>
                             </div>
+                            <div id="expense-list" class="divide-y divide-white/5 max-h-[500px] overflow-y-auto pr-3 custom-scrollbar"></div>
                         </div>
-                    </div>
-                </div>
-
-
-
-                <!-- Budgets Status -->
-                <div class="bg-card-bg rounded-[2rem] shadow-2xl p-6 border border-white/5">
-                    <h3 class="text-2xl font-bold text-white mb-6 flex items-center tracking-tight">
-                        Monthly Budgets
-                    </h3>
-                    <div id="budget-warning-banner" class="hidden bg-danger/10 text-danger border border-danger/30 p-4 rounded-xl font-medium text-sm text-center mb-6 shadow-sm">
-                    </div>
-                    <div id="budget-alerts-container" class="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                     </div>
                 </div>
             </div>
-            
-            <div class="lg:col-span-8 space-y-8 flex flex-col">
-                <!-- Transactions List -->
-                <div class="bg-card-bg rounded-[2rem] shadow-2xl p-6 border border-white/5 flex-grow">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 border-b border-white/10 pb-4">
-                        <div>
-                            <h3 class="text-3xl font-bold text-white tracking-tight">Recent Transactions</h3>
-                            <p class="text-gray-400 mt-2">Manage and view your entries</p>
-                        </div>
-                        <div class="mt-4 md:mt-0 text-left md:text-right">
-                            <span class="block text-sm text-gray-400">Monthly Expenses</span>
-                            <span id="monthly-total-spending" class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-500">₹0.00</span>
-                        </div>
+
+            <!-- View: Subscriptions -->
+            <div id="subscriptions-view" class="view-content hidden space-y-12">
+                <header class="text-center mb-16 px-4">
+                    <h2 class="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
+                        Fixed <span class="text-emerald-400">Expenses</span>
+                    </h2>
+                    <p class="text-gray-400 font-medium text-lg max-w-xl mx-auto">Manage your monthly recurring costs like Netflix, Gym, or Insurance. These are automatically added to your expenses every month.</p>
+                </header>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    <div class="lg:col-span-4 bg-card-bg rounded-[2rem] p-8 border border-white/5">
+                        <h3 class="text-xl font-bold text-white mb-6">Add Recursive Expense</h3>
+                        <form id="subscription-form" class="space-y-5">
+                            <div>
+                                <label for="sub-amount" class="block text-sm font-medium text-gray-300 mb-1.5">Monthly Amount (₹)</label>
+                                <input type="number" id="sub-amount" step="0.01" required placeholder="0.00" class="input-focus block w-full rounded-xl bg-black/30 border border-white/10 text-white p-3.5 text-lg font-bold">
+                            </div>
+                            <div class="custom-dropdown" id="sub-category-dropdown">
+                                <div class="dropdown-trigger" id="sub-category-trigger">
+                                    <div class="trigger-label">
+                                        <span class="category-icon-container"></span>
+                                        <span class="category-text">Select Category</span>
+                                    </div>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                                <div class="dropdown-menu" id="sub-category-menu"></div>
+                                <select id="sub-category" required class="hidden-select"></select>
+                            </div>
+                            <div>
+                                <label for="sub-description" class="block text-sm font-medium text-gray-300 mb-1.5">Name (e.g. Netflix)</label>
+                                <input type="text" id="sub-description" required placeholder="e.g. Spotify Premium" class="input-focus block w-full rounded-xl bg-black/30 border border-white/10 text-white p-3.5">
+                            </div>
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl mt-4 transition-all shadow-xl shadow-emerald-600/20">Save Recurring Expense</button>
+                        </form>
                     </div>
-                    
-                    <div id="filter-controls" class="bg-black/20 p-4 rounded-2xl border border-white/5 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 mb-6 relative">
-                        <div class="flex-1">
-                            <input type="text" id="filter-category-search" placeholder="Search by Category (e.g. Food)" class="input-focus block w-full rounded-xl bg-black/40 border border-white/10 text-white shadow-inner p-3.5 text-sm">
+
+                    <div class="lg:col-span-8 bg-card-bg rounded-[2rem] p-8 border border-white/5">
+                        <div class="flex justify-between items-center mb-8">
+                            <h3 class="text-2xl font-bold text-white">Active Subscriptions</h3>
+                            <div id="sub-count-badge" class="bg-emerald-500/10 text-emerald-400 px-4 py-1.5 rounded-full text-xs font-bold border border-emerald-500/20">0 Total</div>
                         </div>
-                        <div class="flex-1 relative flex items-center space-x-2 w-full">
-                            <input type="date" id="filter-date" class="input-focus block w-full rounded-xl bg-black/40 border border-white/10 text-white shadow-inner p-3.5 text-sm">
-                            <button id="clear-date-filter" class="absolute right-2 top-2 bg-danger/10 text-danger border border-danger/30 p-1.5 rounded-lg hover:bg-danger hover:text-white transition duration-300 shadow-sm">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
+                        <div id="subscription-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Subs go here -->
                         </div>
-                    </div>
-                    <div id="expense-list" class="divide-y divide-white/5 max-h-[450px] overflow-y-auto pr-3 custom-scrollbar">
                     </div>
                 </div>
+            </div>
 
-                <div class="bg-card-bg rounded-[2rem] shadow-2xl p-6 border border-white/5 relative">
-                     <h3 class="absolute top-6 left-6 text-xl font-bold text-white tracking-tight z-10">Spending Breakdown</h3>
-                     <div id="chart-container" class="w-full h-[350px] flex items-center justify-center pt-8">
-                         <canvas id="spendingChart"></canvas>
-                     </div>
+            <!-- View: Budgets -->
+            <div id="budgets-view" class="view-content hidden space-y-12">
+                <header class="text-center mb-16">
+                    <h2 class="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
+                         Monthly <span class="text-emerald-400">Budgets</span>
+                    </h2>
+                    <p class="text-gray-400 font-medium text-lg">Set and monitor your spending limits across categories.</p>
+                </header>
+                <div class="max-w-4xl mx-auto">
+                    <div id="detailed-budget-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Budget cards -->
+                    </div>
+                    <div id="no-budgets-msg" class="hidden text-center py-20 bg-white/5 rounded-[2rem] border border-dashed border-white/10">
+                        <p class="text-gray-500">No budgets set. Use the Overview panel to create one.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View: Analytics -->
+            <div id="analytics-view" class="view-content hidden space-y-12">
+                <header class="text-center mb-16">
+                    <h2 class="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">
+                         Spending <span class="text-emerald-400">Analytics</span>
+                    </h2>
+                    <p class="text-gray-400 font-medium text-lg">Deep dive into your financial habits.</p>
+                </header>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-card-bg rounded-[2rem] p-8 border border-white/5">
+                        <h3 class="text-xl font-bold text-white mb-8">Category Breakdown</h3>
+                        <div class="h-[400px] flex items-center justify-center">
+                            <canvas id="largeSpendingChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-card-bg rounded-[2rem] p-8 border border-white/5">
+                        <h3 class="text-xl font-bold text-white mb-8">Monthly History</h3>
+                        <div class="h-[400px] flex items-center justify-center">
+                             <canvas id="historyChart"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

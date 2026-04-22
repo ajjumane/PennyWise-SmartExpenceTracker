@@ -1,3 +1,6 @@
+// Force-clear any stale browser caches on every load
+if (window.caches) { caches.keys().then(k => k.forEach(key => caches.delete(key))); }
+
 const mainApp = document.getElementById('main-app');
 const heroSection = document.getElementById('hero-section');
 const signupForm = document.getElementById("signupForm");
@@ -42,17 +45,33 @@ function initUI() {
     const loggedInControls = document.getElementById('logged-in-controls');
     const guestControls = document.getElementById('guest-controls');
     const navUserDisplay = document.getElementById('nav-user-display');
-    const heroSection = document.getElementById('hero-section');
+    const heroSec = document.getElementById('hero-section');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
 
     if (currentUser) {
-        if (loggedInControls) loggedInControls.classList.remove('hidden');
-        if (guestControls) guestControls.classList.add('hidden');
+        // Show logged-in UI
+        if (loggedInControls) loggedInControls.style.display = 'flex';
+        if (guestControls) guestControls.style.display = 'none';
         if (navUserDisplay) navUserDisplay.textContent = `Hi, ${currentUser.username}`;
-        if (heroSection) heroSection.classList.add('hidden');
+        if (heroSec) heroSec.classList.add('hidden');
+        if (mainApp) mainApp.classList.remove('hidden');
+        // Show sidebar and toggle button
+        if (sidebar) sidebar.classList.remove('sidebar-hidden');
+        if (sidebarToggle) sidebarToggle.style.display = 'flex';
+        // Sidebar user info
+        const sidebarUser = document.getElementById('sidebar-user-info');
+        const sidebarName = document.getElementById('sidebar-username');
+        if (sidebarUser) sidebarUser.classList.remove('hidden');
+        if (sidebarName) sidebarName.textContent = currentUser.username;
     } else {
-        if (loggedInControls) loggedInControls.classList.add('hidden');
-        if (guestControls) guestControls.classList.remove('hidden');
-        if (heroSection) heroSection.classList.remove('hidden');
+        // Show guest UI
+        if (loggedInControls) loggedInControls.style.display = 'none';
+        if (guestControls) guestControls.style.display = 'flex';
+        if (heroSec) heroSec.classList.remove('hidden');
+        if (mainApp) mainApp.classList.remove('hidden');
+        if (sidebar) sidebar.classList.add('sidebar-hidden');
+        if (sidebarToggle) sidebarToggle.style.display = 'none';
     }
 }
 initUI();
@@ -189,8 +208,14 @@ if (mainApp) {
         userId: currentUser ? currentUser.userId : null,
         expenses: [],
         budgets: [],
+        subscriptions: [],
         categories: ['Food', 'Travel', 'Bills', 'Groceries', 'Entertainment', 'Others'],
-        chartInstance: null
+        currentView: 'overview-view',
+        charts: {
+            overview: null,
+            large: null,
+            history: null
+        }
     };
     window.appState = initialAppState;
 
@@ -202,6 +227,7 @@ if (mainApp) {
                 const data = await response.json();
                 window.appState.expenses = data.expenses || [];
                 window.appState.budgets = data.budgets || [];
+                window.appState.subscriptions = data.subscriptions || [];
             } catch (err) {
                 console.error('Failed to fetch user data:', err);
                 showToast("Failed to sync data from cloud.", "info");
@@ -210,6 +236,7 @@ if (mainApp) {
             window.appState.expenses = JSON.parse(sessionStorage.getItem('guest_expenses') || '[]');
         }
         calculateMonthlyTotalAndUpdate();
+        renderSubscriptions();
     }
 
     // Helpers
@@ -288,8 +315,48 @@ if (mainApp) {
         calculateMonthlyTotalAndUpdate();
     }
 
+    async function addSubscription(amount, category, description) {
+        if (!currentUser) return showToast("Fixed expenses require an account.", "info");
+        
+        const newSub = {
+            id: crypto.randomUUID(),
+            amount: parseFloat(amount),
+            category,
+            description,
+            last_added_month: null, // Let backend handle first add
+            last_added_year: null
+        };
+        
+        window.appState.subscriptions.push(newSub);
+        
+        try {
+            await fetch(`${API_URL}/subscriptions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUser.userId, subscription: newSub })
+            });
+            showToast("Subscription saved!", "success");
+            fetchUserData(); // Trigger auto-log check on backend
+        } catch (err) {
+            console.error('Sub save failed:', err);
+        }
+    }
+
+    async function deleteSubscription(id) {
+        window.appState.subscriptions = window.appState.subscriptions.filter(s => s.id !== id);
+        if (currentUser) {
+            fetch(`${API_URL}/subscriptions/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUser.userId, subscriptionId: id })
+            });
+        }
+        renderSubscriptions();
+    }
+
     window.deleteExpense = deleteExpense;
     window.deleteBudget = deleteBudget;
+    window.deleteSubscription = deleteSubscription;
 
     // Render Logic
     function calculateMonthlyTotal() {
@@ -352,13 +419,21 @@ if (mainApp) {
     function renderBudgets() {
         const container = document.getElementById('budget-alerts-container');
         const banner = document.getElementById('budget-warning-banner');
-        container.innerHTML = '';
+        const detailed = document.getElementById('detailed-budget-container');
+        const msg = document.getElementById('no-budgets-msg');
+        
+        if (container) container.innerHTML = '';
+        if (detailed) detailed.innerHTML = '';
+        
         const { budgets, expenses } = window.appState;
         
         if (budgets.length === 0) {
-            container.innerHTML = `<div class="flex items-center justify-center p-8 bg-black/20 rounded-xl border border-white/5 mt-4"><p class="text-gray-500 text-sm tracking-wide">No budgets set yet.</p></div>`;
-            banner.classList.add('hidden');
+            if (container) container.innerHTML = `<div class="flex items-center justify-center p-8 bg-black/20 rounded-xl border border-white/5 mt-4"><p class="text-gray-500 text-sm tracking-wide">No budgets set yet.</p></div>`;
+            if (banner) banner.classList.add('hidden');
+            if (msg) msg.classList.remove('hidden');
             return;
+        } else {
+            if (msg) msg.classList.add('hidden');
         }
         
         const today = new Date();
@@ -379,31 +454,66 @@ if (mainApp) {
             const status = percent >= 100 ? 'Exceeded' : percent >= 80 ? 'Warning' : 'Good';
             if (percent >= 100) exceeded = true;
             
-            container.innerHTML += `
-            <div class="p-5 bg-black/30 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
-                <div class="flex justify-between items-center mb-3">
-                    <h4 class="text-lg font-bold text-gray-100">${b.category}</h4>
-                    <span class="text-xs px-3 py-1 rounded-full border font-bold tracking-wide ${statusColorText}">${status}</span>
-                </div>
-                <div class="text-sm text-gray-400 mb-3 font-medium tracking-wide">₹${spent.toLocaleString('en-US', {minimumFractionDigits: 2})} <span class="text-gray-600">/</span> ₹${b.limit.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
-                <div class="w-full bg-black/60 rounded-full h-2 overflow-hidden border border-white/5 relative">
-                    <div class="absolute top-0 left-0 h-full rounded-full ${color} transition-all duration-1000 ease-out shadow-[0_0_10px_currentColor]" style="width:${Math.min(percent, 100)}%"></div>
-                </div>
-            </div>`;
+            // Overview item
+            if (container) {
+                container.innerHTML += `
+                <div class="p-5 bg-black/30 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-lg font-bold text-gray-100">${b.category}</h4>
+                        <span class="text-xs px-3 py-1 rounded-full border font-bold tracking-wide ${statusColorText}">${status}</span>
+                    </div>
+                    <div class="text-sm text-gray-400 mb-3 font-medium tracking-wide">₹${spent.toLocaleString()} / ₹${b.limit.toLocaleString()}</div>
+                    <div class="w-full bg-black/60 rounded-full h-2 overflow-hidden border border-white/5 relative">
+                        <div class="absolute top-0 left-0 h-full rounded-full ${color} transition-all duration-1000 ease-out" style="width:${Math.min(percent, 100)}%"></div>
+                    </div>
+                </div>`;
+            }
+
+            // Detailed Budget item
+            if (detailed) {
+                detailed.innerHTML += `
+                <div class="bg-black/30 p-6 rounded-2xl border border-white/5 relative overflow-hidden group">
+                    <div class="absolute top-0 left-0 w-1.5 h-full ${color}"></div>
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h4 class="text-xl font-bold text-white mb-1">${b.category}</h4>
+                            <p class="text-xs text-gray-500 font-bold uppercase tracking-widest">Monthly Allowance</p>
+                        </div>
+                        <button onclick="window.deleteBudget('${b.category}')" class="text-gray-500 hover:text-danger p-2 rounded-lg transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
+                    <div class="flex justify-between items-end mb-4">
+                        <div class="text-3xl font-black text-white">₹${spent.toLocaleString()}</div>
+                        <div class="text-sm text-gray-400 font-bold">Limit: ₹${b.limit.toLocaleString()}</div>
+                    </div>
+                    <div class="relative w-full h-3 bg-black/40 rounded-full overflow-hidden mb-6">
+                        <div class="absolute top-0 left-0 h-full ${color} rounded-full transition-all duration-700" style="width: ${Math.min(percent, 100)}%"></div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-gray-500">Remaining</span>
+                        <span class="font-bold ${percent >= 100 ? 'text-danger' : 'text-emerald-400'}">₹${Math.max(0, b.limit - spent).toLocaleString()}</span>
+                    </div>
+                </div>`;
+            }
         });
         
-        banner.classList.toggle('hidden', !exceeded);
-        if (exceeded) banner.textContent = "⚠️ Warning: One or more budgets exceeded!";
+        if (banner) {
+            banner.classList.toggle('hidden', !exceeded);
+            if (exceeded) banner.textContent = "⚠️ Warning: One or more budgets exceeded!";
+        }
     }
 
     function renderChart() {
-        const { expenses, categories, chartInstance } = window.appState;
+        const { expenses, categories, charts } = window.appState;
         const today = new Date();
         const month = today.getMonth(), year = today.getFullYear();
         const spending = expenses.reduce((a, e) => {
             const d = new Date(e.date);
-            if (d.getMonth() === month && d.getFullYear() === year)
-                a[e.category] = (a[e.category] || 0) + e.amount;
+            if (d.getMonth() === month && d.getFullYear() === year) {
+                const amt = parseFloat(e.amount) || 0;
+                a[e.category] = (a[e.category] || 0) + amt;
+            }
             return a;
         }, {});
         
@@ -411,52 +521,104 @@ if (mainApp) {
         const data = labels.map(c => spending[c]);
         const colors = ['#f43f5e', '#3b82f6', '#8b5cf6', '#10b981', '#d946ef', '#9ca3af'];
         
-        const container = document.getElementById('chart-container');
-        if (!data.length) {
-            container.innerHTML = '<p class="text-gray-500 p-4 text-center text-sm tracking-wide bg-black/20 rounded-xl border border-white/5 mx-6">Add transactions to visualize your spending breakdown.</p>';
-            return;
-        } else {
-             container.innerHTML = '<canvas id="spendingChart"></canvas>';
+        // Handle Mini Overview Chart
+        const miniContainer = document.getElementById('mini-chart-container');
+        if (miniContainer) {
+            if (!data.length) {
+                miniContainer.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;opacity:0.4;gap:12px;">
+                    <div style="width:60px;height:60px;border-radius:50%;border:2px dashed #4b5563;display:flex;align-items:center;justify-content:center;">
+                        <svg xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;color:#4b5563" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /></svg>
+                    </div>
+                    <p style="font-size:10px;text-transform:uppercase;font-weight:700;letter-spacing:0.1em;color:#6b7280;">No data yet</p>
+                </div>`;
+                if (window.appState.charts.overview) {
+                    window.appState.charts.overview.destroy();
+                    window.appState.charts.overview = null;
+                }
+            } else {
+                if (window.appState.charts.overview) {
+                    window.appState.charts.overview.destroy();
+                    window.appState.charts.overview = null;
+                }
+                miniContainer.innerHTML = '<canvas id="miniSpendingChart"></canvas>';
+                // Use setTimeout to ensure canvas is in DOM and has dimensions
+                setTimeout(() => {
+                    const canvas = document.getElementById('miniSpendingChart');
+                    if (!canvas) return;
+                    window.appState.charts.overview = new Chart(canvas, {
+                        type: 'doughnut',
+                        data: {
+                            labels,
+                            datasets: [{ data, backgroundColor: colors.slice(0, labels.length), borderColor: '#0f172a', borderWidth: 2 }]
+                        },
+                        options: {
+                            cutout: '75%',
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'bottom',
+                                    labels: { color: '#94a3b8', usePointStyle: true, font: { size: 11 }, padding: 12 }
+                                }
+                            },
+                            responsive: true,
+                            maintainAspectRatio: false
+                        }
+                    });
+                }, 50);
+            }
         }
 
-        if (chartInstance) chartInstance.destroy();
-        window.appState.chartInstance = new Chart(
-            document.getElementById('spendingChart'),
-            {
+        // Handle Large Analytics Chart
+        const largeCanvas = document.getElementById('largeSpendingChart');
+        if (largeCanvas && window.appState.currentView === 'analytics-view') {
+            if (charts.large) charts.large.destroy();
+            window.appState.charts.large = new Chart(largeCanvas, {
                 type: 'doughnut',
                 data: { 
                     labels, 
-                    datasets: [{ 
-                        data, 
-                        backgroundColor: colors.slice(0, labels.length), 
-                        borderColor: '#0f172a', 
-                        borderWidth: 3,
-                        hoverOffset: 4
-                    }] 
+                    datasets: [{ data, backgroundColor: colors.slice(0, labels.length), borderColor: '#0f172a', borderWidth: 3 }] 
                 },
-                options: {
-                    plugins: {
-                        legend: { 
-                            position: 'bottom', 
-                            labels: { 
-                                color: '#e2e8f0', 
-                                padding: 25, 
-                                font: { family: 'Outfit', size: 13, weight: '500' },
-                                usePointStyle: true,
-                                pointStyle: 'circle'
-                            } 
-                        }
-                    },
-                    cutout: '75%',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                        animateScale: true,
-                        animateRotate: true
-                    }
+                options: { 
+                    plugins: { legend: { position: 'bottom', labels: { color: '#e2e8f0', usePointStyle: true } } },
+                    cutout: '70%', responsive: true, maintainAspectRatio: false 
                 }
-            }
-        );
+            });
+        }
+    }
+
+    function renderSubscriptions() {
+        const list = document.getElementById('subscription-list');
+        if (!list) return;
+        
+        const { subscriptions } = window.appState;
+        const countBadge = document.getElementById('sub-count-badge');
+        if (countBadge) countBadge.textContent = `${subscriptions.length} Total`;
+        
+        list.innerHTML = '';
+        if (subscriptions.length === 0) {
+            list.innerHTML = '<div class="col-span-full py-20 text-center text-gray-500 border border-dashed border-white/10 rounded-2xl">No fixed expenses added yet.</div>';
+            return;
+        }
+        
+        subscriptions.forEach(sub => {
+            list.innerHTML += `
+            <div class="subscription-card">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h4 class="text-white font-bold text-lg">${sub.description}</h4>
+                        <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider">${sub.category}</span>
+                    </div>
+                    <button onclick="window.deleteSubscription('${sub.id}')" class="text-gray-500 hover:text-danger transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                </div>
+                <div class="flex justify-between items-end">
+                    <div class="text-2xl font-black text-white">₹${sub.amount.toLocaleString()}</div>
+                    <div class="text-[10px] text-gray-500 font-bold">RECURS MONTHLY</div>
+                </div>
+            </div>`;
+        });
     }
 
     function calculateMonthlyTotalAndUpdate() {
@@ -494,13 +656,74 @@ if (mainApp) {
         });
         
         // Filters
-        document.getElementById('filter-date').addEventListener('change', renderExpenses);
-        document.getElementById('clear-date-filter').addEventListener('click', () => {
-            document.getElementById('filter-date').value = '';
+        const filterDate = document.getElementById('filter-date');
+        const clearFilter = document.getElementById('clear-date-filter');
+        const catSearch = document.getElementById('filter-category-search');
+        if (filterDate) filterDate.addEventListener('change', renderExpenses);
+        if (clearFilter) clearFilter.addEventListener('click', () => {
+            if (filterDate) filterDate.value = '';
             renderExpenses();
         });
-        document.getElementById('filter-category-search').addEventListener('input', renderExpenses);
+        if (catSearch) catSearch.addEventListener('input', renderExpenses);
+
         
+        // ---- Sidebar & View Switching ----
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        const toggleBtn = document.getElementById('sidebar-toggle');
+        const wrapper = document.getElementById('main-content-wrapper');
+
+        // Track open state; open by default on desktop
+        let sidebarOpen = window.innerWidth >= 1024;
+
+        function applyPadding(open) {
+            if (wrapper) wrapper.style.paddingLeft = (open && window.innerWidth >= 1024) ? '260px' : '0';
+        }
+
+        function setSidebarState(open) {
+            sidebarOpen = open;
+            if (sidebar) {
+                if (open) {
+                    sidebar.style.transform = 'translateX(0)';
+                } else {
+                    sidebar.style.transform = 'translateX(-100%)';
+                }
+            }
+            if (overlay) overlay.style.display = (open && window.innerWidth < 1024) ? 'block' : 'none';
+            applyPadding(open);
+        }
+
+        // Initial state
+        setSidebarState(window.innerWidth >= 1024);
+
+        if (toggleBtn) toggleBtn.onclick = () => setSidebarState(!sidebarOpen);
+        if (overlay) overlay.onclick = () => setSidebarState(false);
+        // Close button inside sidebar
+        const closeBtn2 = document.getElementById('sidebar-close-btn');
+        if (closeBtn2) closeBtn2.onclick = () => setSidebarState(false);
+
+        // View switching
+        const viewLinks = document.querySelectorAll('[data-view-link]');
+        const views = document.querySelectorAll('.view-content');
+
+        function switchView(viewId) {
+            views.forEach(v => v.classList.add('hidden'));
+            viewLinks.forEach(l => l.classList.remove('active'));
+            const target = document.getElementById(viewId);
+            const link = document.querySelector('[data-view-link="' + viewId + '"]');
+            if (target) target.classList.remove('hidden');
+            if (link) link.classList.add('active');
+            window.appState.currentView = viewId;
+            if (window.innerWidth < 1024) setSidebarState(false);
+            calculateMonthlyTotalAndUpdate();
+            if (viewId === 'subscriptions-view') renderSubscriptions();
+        }
+
+        viewLinks.forEach(link => {
+            link.onclick = () => switchView(link.dataset.viewLink);
+        });
+
+
         // Tabs
         const tabs = document.querySelectorAll('[data-tab-button]');
         const contents = document.querySelectorAll('[data-tab-content]');
@@ -519,6 +742,22 @@ if (mainApp) {
                 document.getElementById(target).classList.remove('hidden');
             });
         });
+        
+        // Form Handling: Subscription
+        const subForm = document.getElementById('subscription-form');
+        if (subForm) {
+            subForm.addEventListener('submit', e => {
+                e.preventDefault();
+                const amt = document.getElementById('sub-amount').value;
+                const cat = document.getElementById('sub-category').value;
+                const desc = document.getElementById('sub-description').value;
+                if (amt && cat && desc) {
+                    addSubscription(amt, cat, desc);
+                    e.target.reset();
+                    document.getElementById('sub-category').dispatchEvent(new CustomEvent('reset-ui'));
+                }
+            });
+        }
         
         // Populate Selects
         const expSelect = document.getElementById('expense-category');
@@ -610,9 +849,10 @@ if (mainApp) {
             });
         };
 
-        // Initialize all three dropdowns
+        // Initialize all four dropdowns
         initCustomDropdown('expense-category-dropdown');
         initCustomDropdown('budget-category-dropdown');
+        initCustomDropdown('sub-category-dropdown');
         initCustomDropdown('scan-category-dropdown');
 
         // Close dropdowns on outside click
@@ -624,6 +864,7 @@ if (mainApp) {
         const updateSelects = () => {
             const expSelect = document.getElementById('expense-category');
             const budSelect = document.getElementById('budget-category');
+            const subSelect = document.getElementById('sub-category');
             const scanSelect = document.getElementById('scan-category');
 
             if (expSelect) {
@@ -632,6 +873,9 @@ if (mainApp) {
             if (budSelect) {
                 budSelect.innerHTML = '<option value="" disabled selected>Select Category</option>';
             }
+            if (subSelect) {
+                subSelect.innerHTML = '<option value="" disabled selected>Select Category</option>';
+            }
             if (scanSelect) {
                 scanSelect.innerHTML = '<option value="" disabled selected>Select Category</option>';
             }
@@ -639,6 +883,7 @@ if (mainApp) {
             window.appState.categories.forEach(cat => {
                 if (expSelect) expSelect.add(new Option(cat, cat));
                 if (budSelect) budSelect.add(new Option(cat, cat));
+                if (subSelect) subSelect.add(new Option(cat, cat));
                 if (scanSelect) scanSelect.add(new Option(cat, cat));
             });
 
@@ -971,11 +1216,18 @@ if (closeBtn) {
     });
 }
 
-// Service Worker Registration
+// Kill ALL service workers and clear caches - prevents stale JS/CSS from being served
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('SW Registered'))
-            .catch(err => console.log('SW Error:', err));
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (const reg of registrations) {
+            reg.unregister();
+            console.log('[SW] Unregistered old service worker');
+        }
     });
+    // Also nuke all caches
+    if (window.caches) {
+        caches.keys().then(keys => {
+            keys.forEach(key => caches.delete(key));
+        });
+    }
 }
