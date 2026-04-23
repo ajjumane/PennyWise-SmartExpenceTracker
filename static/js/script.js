@@ -628,6 +628,128 @@ if (mainApp) {
         renderChart();
     }
 
+    // Voice Input for Expenses
+    function initVoiceInput() {
+        const btn = document.getElementById('voice-input-btn');
+        const status = document.getElementById('voice-status');
+        if (!btn || !status) return;
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            btn.style.display = 'none';
+            return; // Not supported
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        let isListening = false;
+
+        btn.addEventListener('click', () => {
+            if (isListening) {
+                recognition.stop();
+                return;
+            }
+            recognition.start();
+        });
+
+        recognition.onstart = () => {
+            isListening = true;
+            btn.classList.add('text-emerald-400', 'animate-pulse', 'bg-emerald-500/20');
+            btn.classList.remove('text-gray-400');
+            status.style.opacity = '1';
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript.toLowerCase();
+            console.log('Voice Input:', transcript);
+
+            // Simple regex: "add [amount] [currency] for [category/description]"
+            // E.g., "add 200 rupees for food", "add 50 for movie"
+            const match = transcript.match(/(?:add\s+)?(\d+(?:\.\d+)?)\s*(?:rupees|rs|bucks|dollars)?\s+(?:for|to|on)?\s+(.+)/i);
+            
+            if (match) {
+                const amount = parseFloat(match[1]);
+                let desc = match[2].trim();
+                
+                // Map common words to predefined categories
+                const categoryMapping = {
+                    'food': ['food', 'lunch', 'dinner', 'breakfast', 'restaurant', 'meal', 'snack'],
+                    'travel': ['travel', 'flight', 'cab', 'uber', 'taxi', 'train', 'bus', 'fuel', 'petrol'],
+                    'bills': ['bill', 'bills', 'electricity', 'water', 'internet', 'wifi', 'rent'],
+                    'groceries': ['grocery', 'groceries', 'market', 'supermarket', 'vegetables'],
+                    'entertainment': ['movie', 'entertainment', 'game', 'concert', 'party', 'cinema']
+                };
+
+                let matchedCategory = 'Others';
+                for (const [cat, keywords] of Object.entries(categoryMapping)) {
+                    if (keywords.some(kw => desc.includes(kw))) {
+                        // Capitalize category
+                        matchedCategory = cat.charAt(0).toUpperCase() + cat.slice(1);
+                        break;
+                    }
+                }
+
+                const formattedDesc = desc.charAt(0).toUpperCase() + desc.slice(1);
+
+                // Auto-fill form (for visual feedback momentarily)
+                document.getElementById('expense-amount').value = amount;
+                document.getElementById('expense-description').value = formattedDesc;
+                
+                // Update custom dropdown visually
+                const expSelect = document.getElementById('expense-category');
+                if (expSelect) {
+                    expSelect.value = matchedCategory;
+                    expSelect.dispatchEvent(new Event('change'));
+                    
+                    // Also find the visual item and click it
+                    const dropdown = document.getElementById('expense-category-dropdown');
+                    if (dropdown) {
+                        const items = dropdown.querySelectorAll('.dropdown-item');
+                        items.forEach(item => {
+                            if (item.dataset.value === matchedCategory) {
+                                item.click();
+                            }
+                        });
+                    }
+                }
+
+                // Automatically add the expense
+                addExpense(amount, matchedCategory, formattedDesc);
+                
+                // Reset the form immediately after a short delay so user can see what was parsed
+                setTimeout(() => {
+                    const form = document.getElementById('expense-form');
+                    if (form) form.reset();
+                    if (expSelect) expSelect.dispatchEvent(new CustomEvent('reset-ui'));
+                }, 800);
+
+                showToast(`Added: ₹${amount} for ${matchedCategory}`, "success");
+            } else {
+                showToast("Could not understand expense. Try 'Add 200 for food'", "info");
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Voice Recognition Error:', event.error);
+            showToast('Voice recognition failed.', 'error');
+            resetVoiceBtn();
+        };
+
+        recognition.onend = () => {
+            resetVoiceBtn();
+        };
+
+        function resetVoiceBtn() {
+            isListening = false;
+            btn.classList.remove('text-emerald-400', 'animate-pulse', 'bg-emerald-500/20');
+            btn.classList.add('text-gray-400');
+            status.style.opacity = '0';
+        }
+    }
+
     function setupEventListeners() {
         // Forms
         document.getElementById('expense-form').addEventListener('submit', e => {
@@ -1183,6 +1305,7 @@ if (mainApp) {
     // Initialize Dashboard
     fetchUserData();
     setupEventListeners();
+    initVoiceInput();
 }
 
 /* PWA Support & Install Logic */
