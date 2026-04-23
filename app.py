@@ -366,6 +366,13 @@ def sync():
             cursor = conn.cursor()
             # Sync Expenses
             for exp in expenses:
+                created_at = exp.get('createdAt', exp.get('createdat', int(time.time() * 1000)))
+                amount = exp.get('amount', 0)
+                category = exp.get('category', 'Others')
+                description = exp.get('description', '')
+                date_val = exp.get('date', '')
+                exp_id = exp.get('id')
+                
                 if IS_POSTGRES:
                     cursor.execute('''
                         INSERT INTO expenses (id, userId, amount, category, description, date, createdAt)
@@ -375,12 +382,12 @@ def sync():
                         category = EXCLUDED.category,
                         description = EXCLUDED.description,
                         date = EXCLUDED.date
-                    ''', (exp['id'], user_id, exp['amount'], exp['category'], exp.get('description', ''), exp['date'], exp['createdAt']))
+                    ''', (exp_id, user_id, amount, category, description, date_val, created_at))
                 else:
                     cursor.execute('''
                         INSERT OR REPLACE INTO expenses (id, userId, amount, category, description, date, createdAt)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (exp['id'], user_id, exp['amount'], exp['category'], exp.get('description', ''), exp['date'], exp['createdAt']))
+                    ''', (exp_id, user_id, amount, category, description, date_val, created_at))
             
             # Sync Budgets
             for bud in budgets:

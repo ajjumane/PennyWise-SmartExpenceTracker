@@ -69,7 +69,7 @@ function initUI() {
         if (loggedInControls) loggedInControls.style.display = 'none';
         if (guestControls) guestControls.style.display = 'flex';
         if (heroSec) heroSec.classList.remove('hidden');
-        if (mainApp) mainApp.classList.remove('hidden');
+        if (mainApp) mainApp.classList.add('hidden');
         if (sidebar) sidebar.classList.add('sidebar-hidden');
         if (sidebarToggle) sidebarToggle.style.display = 'none';
     }
@@ -380,7 +380,7 @@ if (mainApp) {
         if (dateFilter) expenses = expenses.filter(e => e.date === dateFilter);
         if (categorySearch) expenses = expenses.filter(e => e.category.toLowerCase().includes(categorySearch));
         
-        expenses = expenses.sort((a, b) => b.createdAt - a.createdAt);
+        expenses = expenses.sort((a, b) => (b.createdAt || b.createdat || 0) - (a.createdAt || a.createdat || 0));
         list.innerHTML = '';
         
         if (expenses.length === 0) {
@@ -673,20 +673,23 @@ if (mainApp) {
         const toggleBtn = document.getElementById('sidebar-toggle');
         const wrapper = document.getElementById('main-content-wrapper');
 
-        // Track open state; open by default on desktop
-        let sidebarOpen = window.innerWidth >= 1024;
+        // Track open state; open by default on desktop ONLY if logged in
+        let sidebarOpen = Boolean(currentUser && window.innerWidth >= 1024);
 
         function applyPadding(open) {
             if (wrapper) wrapper.style.paddingLeft = (open && window.innerWidth >= 1024) ? '260px' : '0';
         }
 
         function setSidebarState(open) {
+            if (!currentUser) open = false; // Never open for guests
             sidebarOpen = open;
             if (sidebar) {
                 if (open) {
                     sidebar.style.transform = 'translateX(0)';
+                    sidebar.classList.remove('sidebar-hidden');
                 } else {
                     sidebar.style.transform = 'translateX(-100%)';
+                    sidebar.classList.add('sidebar-hidden');
                 }
             }
             if (overlay) overlay.style.display = (open && window.innerWidth < 1024) ? 'block' : 'none';
@@ -694,7 +697,7 @@ if (mainApp) {
         }
 
         // Initial state
-        setSidebarState(window.innerWidth >= 1024);
+        setSidebarState(sidebarOpen);
 
         if (toggleBtn) toggleBtn.onclick = () => setSidebarState(!sidebarOpen);
         if (overlay) overlay.onclick = () => setSidebarState(false);
