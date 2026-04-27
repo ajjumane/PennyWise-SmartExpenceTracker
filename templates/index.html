@@ -38,10 +38,10 @@
                     <span class="text-xl font-bold tracking-tight text-white">Penny<span class="text-emerald-400">Wise</span></span>
                 </div>
             </div>
-            <div class="flex items-center space-x-4">
-                <div id="logged-in-controls" class="items-center space-x-3" style="display:none">
+            <div class="flex items-center gap-6">
+                <div id="logged-in-controls" class="items-center gap-4" style="display:none">
                     <span id="nav-user-display" class="text-sm font-medium text-gray-400"></span>
-                    <button id="logout-button" class="px-4 py-2 rounded-full border border-danger/30 text-danger hover:bg-danger hover:text-white transition-all text-sm font-semibold">Logout</button>
+                    <button id="logout-button" class="hidden md:block px-4 py-2 rounded-full border border-danger/30 text-danger hover:bg-danger hover:text-white transition-all text-sm font-semibold">Logout</button>
                 </div>
                 <div id="guest-controls" class="flex items-center space-x-3">
                     <button id="open-login" class="text-gray-300 hover:text-white transition-colors text-sm font-semibold">Sign In</button>
@@ -85,7 +85,13 @@
                 </button>
         </div>
 
-        <div style="margin-top:auto;padding:1rem 1.5rem 1.5rem;">
+        <div style="margin-top:auto;padding:1rem 1.5rem 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+            <button id="sidebar-logout-button" class="sidebar-logout-btn hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Logout</span>
+            </button>
             <div id="sidebar-user-info" class="hidden rounded-2xl bg-white/5 p-4 border border-white/5">
                 <div class="text-xs text-gray-500 mb-1">Logged in as</div>
                 <div id="sidebar-username" class="text-sm font-bold text-white truncate"></div>

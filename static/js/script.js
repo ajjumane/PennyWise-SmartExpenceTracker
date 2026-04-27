@@ -62,8 +62,10 @@ function initUI() {
         // Sidebar user info
         const sidebarUser = document.getElementById('sidebar-user-info');
         const sidebarName = document.getElementById('sidebar-username');
+        const sidebarLogout = document.getElementById('sidebar-logout-button');
         if (sidebarUser) sidebarUser.classList.remove('hidden');
         if (sidebarName) sidebarName.textContent = currentUser.username;
+        if (sidebarLogout) sidebarLogout.classList.remove('hidden');
     } else {
         // Show guest UI
         if (loggedInControls) loggedInControls.style.display = 'none';
@@ -72,6 +74,8 @@ function initUI() {
         if (mainApp) mainApp.classList.add('hidden');
         if (sidebar) sidebar.classList.add('sidebar-hidden');
         if (sidebarToggle) sidebarToggle.style.display = 'none';
+        const sidebarLogout = document.getElementById('sidebar-logout-button');
+        if (sidebarLogout) sidebarLogout.classList.add('hidden');
     }
 }
 initUI();
@@ -190,12 +194,13 @@ loginForm.addEventListener("submit", async (e) => {
 // App Logic Initialization
 if (mainApp) {
     const logoutBtn = document.getElementById('logout-button');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem('currentUser');
-            window.location.reload();
-        });
-    }
+    const sidebarLogoutBtn = document.getElementById('sidebar-logout-button');
+    const handleLogout = () => {
+        localStorage.removeItem('currentUser');
+        window.location.reload();
+    };
+    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+    if (sidebarLogoutBtn) sidebarLogoutBtn.addEventListener('click', handleLogout);
 
     // Navbar Scroll Effect
     window.addEventListener('scroll', () => {
