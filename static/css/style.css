@@ -467,6 +467,22 @@ input[type="number"]::-webkit-outer-spin-button {
   margin: 0; 
 }
 
+/* Make date picker icon visible on dark background */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.5);
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+.animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+}
+
+
 /* Custom Enhanced Dropdown */
 .custom-dropdown {
     position: relative;

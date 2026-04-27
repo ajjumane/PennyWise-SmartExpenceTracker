@@ -385,11 +385,25 @@ if (mainApp) {
         if (dateFilter) expenses = expenses.filter(e => e.date === dateFilter);
         if (categorySearch) expenses = expenses.filter(e => e.category.toLowerCase().includes(categorySearch));
         
+        // Calculate Day Total if date filter is active
+        const dayTotalDisplay = document.getElementById('day-total-display');
+        const dayTotalAmount = document.getElementById('day-total-amount');
+        if (dayTotalDisplay && dayTotalAmount) {
+            if (dateFilter) {
+                const total = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+                dayTotalAmount.textContent = `₹${total.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                dayTotalDisplay.classList.remove('hidden');
+            } else {
+                dayTotalDisplay.classList.add('hidden');
+            }
+        }
+
         expenses = expenses.sort((a, b) => (b.createdAt || b.createdat || 0) - (a.createdAt || a.createdat || 0));
         list.innerHTML = '';
         
         if (expenses.length === 0) {
-            list.innerHTML = `<div class="flex items-center justify-center h-32 bg-black/20 rounded-xl mt-4 border border-white/5"><p class="text-gray-500 text-center tracking-wide text-sm">— No transactions found —</p></div>`;
+            const msg = dateFilter ? `No transactions found for ${new Date(dateFilter).toLocaleDateString()}` : "No transactions found";
+            list.innerHTML = `<div class="flex items-center justify-center h-32 bg-black/20 rounded-xl mt-4 border border-white/5"><p class="text-gray-500 text-center tracking-wide text-sm">— ${msg} —</p></div>`;
             return;
         }
         
